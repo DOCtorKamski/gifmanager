@@ -2,6 +2,9 @@
 #include "ui_mainwindow.h"
 #include <QLabel>
 #include <QResizeEvent>
+#include <QFileDialog>
+#include <QMimeData> //for copyClipboard
+#include <QClipboard> //for copyClipboard
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -9,44 +12,100 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    //TODO change how find path
-    QStringList gif_files = {
-        "/path/to/my_file1.gif"
-        "/path/to/my_file2.gif"
-        "/path/to/my_file3.gif"
-        "/path/to/my_file4.gif"
-        "/path/to/my_file5.gif"
-    };
+    connect(ui->chooseButton, &QPushButton::clicked, this, &MainWindow::chooseFolder);
+}
 
-    //TODO move this
-    int row_count{};
-    int col_count{};
-
-    for(const QString &gif_path : gif_files) {
-        QLabel *label = new QLabel();
-        QMovie *movie = new QMovie(gif_path);
-        label->setMovie(movie);
-        movie->start();
-
-        //resize label to gif size TODO make like method
-        QSize gif_size = movie->currentImage().size();
-        label->setFixedSize(gif_size);
-
-        // add label to grid layout
-        ui->gridLayout->addWidget(label, row_count, col_count);
-
-        // update row and column index
-        col_count++;
-        if (col_count >= 3) { // TODO add to change to desired number of columns
-            col_count = 0;
-            row_count++;
-        }
+void MainWindow::chooseFolder() {
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Select GIF Folder"));
+    if (!dir.isEmpty()) {
+        loadGifsFromFolder(dir);
     }
+}
+
+void MainWindow::loadGifsFromFolder(const QString &path) {
+   // clearItems(); //TODO did this func, mby dont need. Clear before new folder choose
+
+    QDir directory(path);
+    QStringList filters;
+    filters << "*.gif" << "*.GIF";
+    QFileInfoList files = directory.entryInfoList(filters, QDir::Files, QDir::Name);
+
+    int row = 0, col = 0;
+    for (const QFileInfo &fi : files) {
+        ClickableLabel *label = new ClickableLabel;
+        label->setFixedSize(thumbnailSize);
+        label->setAlignment(Qt::AlignCenter);
+        label->setStyleSheet("background: #222; border: 1px solid #444;"); //TODO change style
+        label->setFilePath(fi.absoluteFilePath());
+        connect(label, &ClickableLabel::copyRequested, this, &MainWindow::copyGifToClipboard);
+
+        QMovie *movie = new QMovie(fi.absoluteFilePath());
+        movie->setCacheMode(QMovie::CacheAll);
+        movie->setScaledSize(thumbnailSize);
+
+        // resize GIFs to default size
+        connect(movie, &QMovie::frameChanged, label, [label, movie, this](int){
+            QImage img = movie->currentImage();
+            if (!img.isNull()) {
+                QPixmap pm = QPixmap::fromImage(img.scaled(thumbnailSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                label->setPixmap(pm);
+            }
+        });
+
+        ui->gridLayout->addWidget(label, row, col);
+        GifItem gi;
+        gi.label = label;
+        gi.movie = movie;
+        gi.movie->start(); // TODO mby after change this, soo lagy now
+        items.insert(label, gi);
+
+        col++;
+        if (col >= columns) { col = 0; row++; }
+    }
+
+    ui->containerWidget->adjustSize();
+    //visibilityTimer->start(); // TODO mby put here func to start movie only when see GIFs on screen
+}
+
+// I Googled this func
+void MainWindow::copyGifToClipboard(const QString &filePath) {
+    QFile f(filePath);
+    if (!f.open(QIODevice::ReadOnly)) return;
+    QByteArray data = f.readAll();
+    f.close();
+
+    QMimeData *mime = new QMimeData;
+    // Raw GIF bytes
+    mime->setData("image/gif", data);
+
+    // Also provide generic bytes and a filename hint
+    mime->setData("application/octet-stream", data);
+    mime->setData("application/x-qt-windows-mime;value=\"FileNameW\"",
+                  QFileInfo(filePath).fileName().toUtf8());
+
+    // Provide a pixmap fallback (first frame) for apps that only accept images
+    QMovie tmpMovie(filePath);
+    if (tmpMovie.isValid()) {
+        tmpMovie.start();
+        tmpMovie.jumpToFrame(0);
+        QImage img = tmpMovie.currentImage();
+        if (!img.isNull()) {
+            mime->setImageData(QVariant::fromValue(QPixmap::fromImage(img)));
+        }
+        tmpMovie.stop();
+    }
+
+    // Also set a file URL so pasting into a file-aware target uses the original file
+    QList<QUrl> urls;
+    urls.append(QUrl::fromLocalFile(filePath));
+    mime->setUrls(urls);
+
+    QClipboard *cb = QApplication::clipboard();
+    cb->setMimeData(mime);
 }
 
 MainWindow::~MainWindow()
 {
-    delete movie;
     delete ui;
 }
 
