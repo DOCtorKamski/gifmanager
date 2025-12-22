@@ -6,6 +6,7 @@
 #include <QMimeData> //for copyClipboard
 #include <QClipboard> //for copyClipboard
 #include "clickable_label.h"
+#include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -14,6 +15,14 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     connect(ui->chooseButton, &QPushButton::clicked, this, &MainWindow::chooseFolder);
+
+    visibility_timer = new QTimer(this);
+    visibility_timer->setSingleShot(true);
+    visibility_timer->setInterval(80); // fire signal every 80 milsec
+    connect(visibility_timer, &QTimer::timeout, this, &MainWindow::animateIfVisible);
+
+    connect(ui->scrollArea->verticalScrollBar(), &QScrollBar::valueChanged, visibility_timer, qOverload<>(&QTimer::start));
+    connect(ui->scrollArea->horizontalScrollBar(), &QScrollBar::valueChanged, visibility_timer, qOverload<>(&QTimer::start));
 }
 
 void MainWindow::chooseFolder() {
@@ -57,7 +66,6 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         GifItem gi;
         gi.label = label;
         gi.movie = movie;
-        gi.movie->start(); // TODO mby after change this, soo lagy now
         items.insert(label, gi);
 
         col++;
@@ -65,8 +73,33 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
     }
 
     ui->containerWidget->adjustSize();
-    //visibilityTimer->start(); // TODO mby put here func to start movie only when see GIFs on screen
+    visibility_timer->start();
 }
+
+bool MainWindow::isWidgetVisibleInViewport(QWidget *w) {
+    if (!w) return false;
+    QRect viewport_rect = ui->scrollArea->viewport()->rect();
+    QPoint w_top_left = w->mapTo(ui->scrollArea->viewport(), QPoint(0,0));
+    QRect widgetRect(w_top_left, w->size());
+    return viewport_rect.intersects(widgetRect);
+}
+
+void MainWindow::animateIfVisible() {
+    for (auto &item : items) {
+        if (!item.label || !item.movie) continue;
+
+        bool is_visible = isWidgetVisibleInViewport(item.label);
+        bool is_running = (item.movie->state() == QMovie::Running);
+
+        if (is_visible && !is_running) {
+            item.movie->setPaused(false);
+            item.movie->start();
+        } else if (!is_visible && is_running) {
+            item.movie->setPaused(true);
+        }
+    }
+}
+
 
 // I Googled this func
 void MainWindow::copyGifToClipboard(const QString &filePath) {
