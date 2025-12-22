@@ -11,6 +11,8 @@ qt_add_executable(gifmanager
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+
+    clickable_label.h clickable_label.cpp
 )
 
 target_link_libraries(gifmanager

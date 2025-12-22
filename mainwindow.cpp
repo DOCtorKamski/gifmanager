@@ -5,6 +5,7 @@
 #include <QFileDialog>
 #include <QMimeData> //for copyClipboard
 #include <QClipboard> //for copyClipboard
+#include "clickable_label.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
