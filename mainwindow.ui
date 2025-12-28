@@ -23,6 +23,13 @@
      </widget>
     </item>
     <item>
+     <widget class="QLineEdit" name="searchEdit">
+      <property name="placeholderText">
+       <string>Search GIFs by name...</string>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QScrollArea" name="scrollArea">
       <property name="widgetResizable">
        <bool>true</bool>
@@ -33,7 +40,7 @@
          <x>0</x>
          <y>0</y>
          <width>780</width>
-         <height>509</height>
+         <height>480</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout"/>

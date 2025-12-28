@@ -15,11 +15,21 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     connect(ui->chooseButton, &QPushButton::clicked, this, &MainWindow::chooseFolder);
+    connect(ui->searchEdit, &QLineEdit::textChanged, this, [this](const QString&){ //use labda instead slots
+        search_timer->start();
+    });
 
     visibility_timer = new QTimer(this);
     visibility_timer->setSingleShot(true);
     visibility_timer->setInterval(80); // fire signal every 80 milsec
     connect(visibility_timer, &QTimer::timeout, this, &MainWindow::animateIfVisible);
+
+    search_timer = new QTimer(this);
+    search_timer->setSingleShot(true);
+    search_timer->setInterval(200);
+    connect(search_timer, &QTimer::timeout, this, [this](){ //use labda instead slots
+        loadGifsFromFolder(current_folder);
+    });
 
     connect(ui->scrollArea->verticalScrollBar(), &QScrollBar::valueChanged, visibility_timer, qOverload<>(&QTimer::start));
     connect(ui->scrollArea->horizontalScrollBar(), &QScrollBar::valueChanged, visibility_timer, qOverload<>(&QTimer::start));
@@ -29,24 +39,58 @@ void MainWindow::chooseFolder() {
     QString dir = QFileDialog::getExistingDirectory(this, tr("Select GIF Folder"));
     if (!dir.isEmpty()) {
         loadGifsFromFolder(dir);
+        QDir directory(dir);
+        QStringList filters;
+        filters << "*.gif" << "*.GIF";
+        QFileInfoList files = directory.entryInfoList(filters, QDir::Files, QDir::Name);
+        all_gif_files.clear();
+        for (const QFileInfo &fi : files) all_gif_files.append(fi.absoluteFilePath());
+        ui->searchEdit->clear();
+        loadGifsFromFolder(current_folder);
+    }
+}
+
+//Googled this func
+void MainWindow::clearItems() {
+    for (auto it = items.begin(); it != items.end(); ++it) {
+        if (it->movie) {
+            it->movie->stop();
+            it->movie->deleteLater();
+        }
+        if (it->label) {
+            it->label->deleteLater();
+        }
+    }
+    items.clear();
+
+    QLayoutItem *child;
+    while ((child = ui->gridLayout->takeAt(0)) != nullptr) {
+        delete child;
     }
 }
 
 void MainWindow::loadGifsFromFolder(const QString &path) {
-   // clearItems(); //TODO did this func, mby dont need. Clear before new folder choose
+    clearItems();
 
-    QDir directory(path);
-    QStringList filters;
-    filters << "*.gif" << "*.GIF";
-    QFileInfoList files = directory.entryInfoList(filters, QDir::Files, QDir::Name);
+    QString query;
+    if (ui->searchEdit) query = ui->searchEdit->text().trimmed().toLower();
+    const bool has_query = !query.isEmpty();
 
     int row = 0, col = 0;
-    for (const QFileInfo &fi : files) {
+    for (const QString &file_path : all_gif_files) {
+        QFileInfo fi(file_path);
+        if (!fi.exists() || !fi.isFile()) continue;
+
+        if (has_query) {
+            if (!fi.fileName().toLower().contains(query)) continue;
+        }
+
+
         ClickableLabel *label = new ClickableLabel;
         label->setFixedSize(thumbnailSize);
         label->setAlignment(Qt::AlignCenter);
         label->setStyleSheet("background: #222; border: 1px solid #444;"); //TODO change style
-        label->setFilePath(fi.absoluteFilePath());
+        label->setFilePath(file_path);
         connect(label, &ClickableLabel::copyRequested, this, &MainWindow::copyGifToClipboard);
 
         QMovie *movie = new QMovie(fi.absoluteFilePath());

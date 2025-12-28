@@ -26,6 +26,7 @@ private slots:
     void animateIfVisible();
 private:
     Ui::MainWindow *ui;
+    void clearItems();
     void loadGifsFromFolder(const QString &path);
     bool isWidgetVisibleInViewport(QWidget *w);
 
@@ -35,6 +36,9 @@ private:
     };
 
     QMap<QWidget*, GifItem> items;
+    QString current_folder;
+    QStringList all_gif_files; // full paths of all GIFs in folder
+    QTimer *search_timer = nullptr;
     QTimer *visibility_timer = nullptr;
     const QSize thumbnailSize = QSize(160, 120); //default GIFs size
     const int columns = 3; //default thubnail columns
