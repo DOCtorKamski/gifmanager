@@ -1,11 +1,11 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "clickable_label.h"
 #include <QLabel>
 #include <QResizeEvent>
 #include <QFileDialog>
 #include <QMimeData> //for copyClipboard
 #include <QClipboard> //for copyClipboard
-#include "clickable_label.h"
 #include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -85,7 +85,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
             if (!fi.fileName().toLower().contains(query)) continue;
         }
 
-
+        //TODO create new func for this
         ClickableLabel *label = new ClickableLabel;
         label->setFixedSize(thumbnailSize);
         label->setAlignment(Qt::AlignCenter);
@@ -93,7 +93,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         label->setFilePath(file_path);
         connect(label, &ClickableLabel::copyRequested, this, &MainWindow::copyGifToClipboard);
 
-        QMovie *movie = new QMovie(fi.absoluteFilePath());
+        QMovie *movie = new QMovie(file_path);
         movie->setCacheMode(QMovie::CacheAll);
         movie->setScaledSize(thumbnailSize);
 
@@ -105,6 +105,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
                 label->setPixmap(pm);
             }
         });
+        //TODO create new func for this
 
         ui->gridLayout->addWidget(label, row, col);
         GifItem gi;
@@ -143,7 +144,6 @@ void MainWindow::animateIfVisible() {
         }
     }
 }
-
 
 // I Googled this func
 void MainWindow::copyGifToClipboard(const QString &filePath) {

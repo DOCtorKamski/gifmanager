@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "clickableLabe.h"
 #include <QMainWindow>
 #include <QMovie>
 #include <QLabel>
@@ -22,20 +23,20 @@ public:
 
 private slots:
     void chooseFolder();
-    void copyGifToClipboard (const QString &filePath);
+    void copyGifToClipboard (const QString &file_path);
     void animateIfVisible();
 private:
     Ui::MainWindow *ui;
     void clearItems();
-    void loadGifsFromFolder(const QString &path);
+    void loadGifsFromFolder(const QString &folder_path);
     bool isWidgetVisibleInViewport(QWidget *w);
 
-    struct GifItem { //mby need dont use struct
-        QLabel *label = nullptr;
+    struct GifItem { //mby need dont use struct TODO
+        ClickableLabel *label = nullptr;
         QMovie *movie = nullptr;
     };
 
-    QMap<QWidget*, GifItem> items;
+    QMap<QWidget*, GifItem> items; //TODO need better name
     QString current_folder;
     QStringList all_gif_files; // full paths of all GIFs in folder
     QTimer *search_timer = nullptr;
