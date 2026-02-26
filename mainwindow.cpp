@@ -11,6 +11,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , current_folder("")
 {
     ui->setupUi(this);
 
@@ -38,11 +39,11 @@ MainWindow::MainWindow(QWidget *parent)
 void MainWindow::chooseFolder() {
     QString dir = QFileDialog::getExistingDirectory(this, tr("Select GIF Folder"));
     if (!dir.isEmpty()) {
-        loadGifsFromFolder(dir);
+        current_folder = dir;
         QDir directory(dir);
         QStringList filters;
-        filters << "*.gif" << "*.GIF";
-        QFileInfoList files = directory.entryInfoList(filters, QDir::Files, QDir::Name);
+        directory.setNameFilters(QStringList() << "*.gif" << "*.GIF");
+        QFileInfoList files = directory.entryInfoList(QDir::Files, QDir::Name);
         all_gif_files.clear();
         for (const QFileInfo &fi : files) all_gif_files.append(fi.absoluteFilePath());
         ui->searchEdit->clear();
@@ -86,7 +87,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         }
 
         //TODO create new func for this
-        ClickableLabel *label = new ClickableLabel;
+        ClickableLabel *label = new ClickableLabel(this);
         label->setFixedSize(thumbnailSize);
         label->setAlignment(Qt::AlignCenter);
         label->setStyleSheet("background: #222; border: 1px solid #444;"); //TODO change style
@@ -96,6 +97,8 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         QMovie *movie = new QMovie(file_path);
         movie->setCacheMode(QMovie::CacheAll);
         movie->setScaledSize(thumbnailSize);
+        movie->jumpToFrame(0);
+        movie->setPaused(true);
 
         // resize GIFs to default size
         connect(movie, &QMovie::frameChanged, label, [label, movie, this](int){

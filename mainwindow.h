@@ -1,7 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "clickableLabe.h"
+#include "clickable_label.h"
 #include <QMainWindow>
 #include <QMovie>
 #include <QLabel>
