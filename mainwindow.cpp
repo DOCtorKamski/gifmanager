@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "clickable_label.h"
+#include "gif_viewer.h"
 #include <QLabel>
 #include <QResizeEvent>
 #include <QFileDialog>
@@ -93,6 +94,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         label->setStyleSheet("background: #222; border: 1px solid #444;"); //TODO change style
         label->setFilePath(file_path);
         connect(label, &ClickableLabel::copyRequested, this, &MainWindow::copyGifToClipboard);
+        connect(label, &ClickableLabel::openFullSizeRequested, this, &MainWindow::openFullSizeGif);
 
         QMovie *movie = new QMovie(file_path);
         movie->setCacheMode(QMovie::CacheAll);
@@ -149,8 +151,8 @@ void MainWindow::animateIfVisible() {
 }
 
 // I Googled this func
-void MainWindow::copyGifToClipboard(const QString &filePath) {
-    QFile f(filePath);
+void MainWindow::copyGifToClipboard(const QString &file_path) {
+    QFile f(file_path);
     if (!f.open(QIODevice::ReadOnly)) return;
     QByteArray data = f.readAll();
     f.close();
@@ -162,10 +164,10 @@ void MainWindow::copyGifToClipboard(const QString &filePath) {
     // Also provide generic bytes and a filename hint
     mime->setData("application/octet-stream", data);
     mime->setData("application/x-qt-windows-mime;value=\"FileNameW\"",
-                  QFileInfo(filePath).fileName().toUtf8());
+                  QFileInfo(file_path).fileName().toUtf8());
 
     // Provide a pixmap fallback (first frame) for apps that only accept images
-    QMovie tmpMovie(filePath);
+    QMovie tmpMovie(file_path);
     if (tmpMovie.isValid()) {
         tmpMovie.start();
         tmpMovie.jumpToFrame(0);
@@ -178,11 +180,16 @@ void MainWindow::copyGifToClipboard(const QString &filePath) {
 
     // Also set a file URL so pasting into a file-aware target uses the original file
     QList<QUrl> urls;
-    urls.append(QUrl::fromLocalFile(filePath));
+    urls.append(QUrl::fromLocalFile(file_path));
     mime->setUrls(urls);
 
     QClipboard *cb = QApplication::clipboard();
     cb->setMimeData(mime);
+}
+
+void MainWindow::openFullSizeGif(const QString &file_path) {
+    GifViewer *viewer = new GifViewer(file_path);
+    viewer->show();
 }
 
 MainWindow::~MainWindow()

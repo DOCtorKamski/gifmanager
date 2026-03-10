@@ -10,10 +10,15 @@ class ClickableLabel : public QLabel {
 public:
     explicit ClickableLabel(QWidget *parent = nullptr);
     void setFilePath(const QString &p);
+
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+
 signals:
-    void copyRequested(const QString &filePath);
+    void copyRequested(const QString &file_path);
+    void openFullSizeRequested(const QString &file_path);
+
 private:
     QString file_path;
 };
