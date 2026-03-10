@@ -18,6 +18,7 @@ protected:
 signals:
     void copyRequested(const QString &file_path);
     void openFullSizeRequested(const QString &file_path);
+    void renameRequested(const QString &file_path);
 
 private:
     QString file_path;

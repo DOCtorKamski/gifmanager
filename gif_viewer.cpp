@@ -2,9 +2,11 @@
 #include <QVBoxLayout>
 #include <QFileInfo>
 #include <QMouseEvent>
+#include <QContextMenuEvent>
+#include <QMenu>
 
 GifViewer::GifViewer(const QString &file_path, QWidget *parent)
-    : QWidget(parent)
+    : QWidget(parent), file_path(file_path)
 {
     setWindowTitle(QFileInfo(file_path).fileName());
     setAttribute(Qt::WA_DeleteOnClose);
@@ -34,8 +36,21 @@ GifViewer::~GifViewer() {
 }
 
 void GifViewer::mousePressEvent(QMouseEvent *event) {
-    if (event->button() == Qt::RightButton) {
+    if (event->button() == Qt::LeftButton) {
         close();
     }
+    else if (event->button() == Qt::RightButton) {
+        contextMenuEvent(new QContextMenuEvent(QContextMenuEvent::Mouse, event->pos()));
+    }
     QWidget::mousePressEvent(event);
+}
+
+void GifViewer::contextMenuEvent(QContextMenuEvent *event) {
+    QMenu menu(this);
+    QAction *rename_act = menu.addAction(tr("Rename"));
+
+    QAction *act = menu.exec(mapToGlobal(event->pos()));
+    if (act == rename_act) {
+        emit renameRequested(file_path);
+    }
 }

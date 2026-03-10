@@ -25,6 +25,7 @@ private slots:
     void copyGifToClipboard (const QString &file_path);
     void animateIfVisible();
     void openFullSizeGif(const QString &file_path);
+    void renameGif(const QString &file_path);
 
 private:
     Ui::MainWindow *ui;

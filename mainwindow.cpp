@@ -8,6 +8,9 @@
 #include <QMimeData> //for copyClipboard
 #include <QClipboard> //for copyClipboard
 #include <QScrollBar>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QRegularExpression>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -95,6 +98,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         label->setFilePath(file_path);
         connect(label, &ClickableLabel::copyRequested, this, &MainWindow::copyGifToClipboard);
         connect(label, &ClickableLabel::openFullSizeRequested, this, &MainWindow::openFullSizeGif);
+        connect(label, &ClickableLabel::renameRequested, this, &MainWindow::renameGif);
 
         QMovie *movie = new QMovie(file_path);
         movie->setCacheMode(QMovie::CacheAll);
@@ -189,7 +193,50 @@ void MainWindow::copyGifToClipboard(const QString &file_path) {
 
 void MainWindow::openFullSizeGif(const QString &file_path) {
     GifViewer *viewer = new GifViewer(file_path);
+    connect(viewer, &GifViewer::renameRequested, this, &MainWindow::renameGif);
     viewer->show();
+}
+
+void MainWindow::renameGif(const QString &file_path) {
+    QFileInfo fi(file_path);
+    QString old_name = fi.baseName();
+    QString extension = fi.suffix();
+
+    bool ok;
+    QString new_name = QInputDialog::getText(this,
+                                            tr("Rename GIF"),
+                                            tr("Enter new name (without extension):"),
+                                            QLineEdit::Normal,
+                                            old_name,
+                                            &ok);
+
+    if (ok && !new_name.isEmpty() && new_name != old_name) {
+        if (new_name.contains(QRegularExpression("[/\\\\:*?\"<>|]"))) {
+            QMessageBox::warning(this, tr("Invalid Name"),
+                                 tr("Name contains invalid characters"));
+            return;
+        }
+
+        QString new_file_path = fi.absolutePath() + "/" + new_name + "." + extension;
+
+        if (QFile::exists(new_file_path)) {
+            QMessageBox::warning(this, tr("File Exists"),
+                                 tr("A file with this name already exists"));
+            return;
+        }
+
+        if (QFile::rename(file_path, new_file_path)) {
+            all_gif_files.removeAll(file_path);
+            all_gif_files.append(new_file_path);
+            loadGifsFromFolder(current_folder);
+
+            QMessageBox::information(this, tr("Success"),
+                                     tr("File renamed successfully"));
+        } else {
+            QMessageBox::warning(this, tr("Error"),
+                                 tr("Failed to rename file"));
+        }
+    }
 }
 
 MainWindow::~MainWindow()

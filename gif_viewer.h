@@ -13,10 +13,15 @@ public:
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
+
+signals:
+    void renameRequested(const QString &file_path);
 
 private:
     QLabel *image_label;
     QMovie *movie;
+    QString file_path;
 };
 
 #endif // GIF_VIEWER_H
