@@ -47,10 +47,14 @@ void GifViewer::mousePressEvent(QMouseEvent *event) {
 
 void GifViewer::contextMenuEvent(QContextMenuEvent *event) {
     QMenu menu(this);
+    QAction *copy_act = menu.addAction(tr("Copy GIF"));
     QAction *rename_act = menu.addAction(tr("Rename"));
 
     QAction *act = menu.exec(mapToGlobal(event->pos()));
-    if (act == rename_act) {
+    if (act == copy_act) {
+        emit copyRequested(file_path);
+    }
+    else if (act == rename_act) {
         emit renameRequested(file_path);
     }
 }

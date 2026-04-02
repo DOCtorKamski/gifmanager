@@ -16,6 +16,7 @@ protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
 
 signals:
+    void copyRequested(const QString &file_path);
     void renameRequested(const QString &file_path);
 
 private:

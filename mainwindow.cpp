@@ -193,6 +193,7 @@ void MainWindow::copyGifToClipboard(const QString &file_path) {
 
 void MainWindow::openFullSizeGif(const QString &file_path) {
     GifViewer *viewer = new GifViewer(file_path);
+    connect(viewer, &GifViewer::copyRequested, this, &MainWindow::copyGifToClipboard);
     connect(viewer, &GifViewer::renameRequested, this, &MainWindow::renameGif);
     viewer->show();
 }
