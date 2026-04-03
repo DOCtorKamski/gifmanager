@@ -98,6 +98,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         label->setFilePath(file_path);
         connect(label, &ClickableLabel::copyRequested, this, &MainWindow::copyGifToClipboard);
         connect(label, &ClickableLabel::openFullSizeRequested, this, &MainWindow::openFullSizeGif);
+        connect(label, &ClickableLabel::deleteRequested, this, &MainWindow::deleteGif);
         connect(label, &ClickableLabel::renameRequested, this, &MainWindow::renameGif);
 
         QMovie *movie = new QMovie(file_path);
@@ -194,8 +195,47 @@ void MainWindow::copyGifToClipboard(const QString &file_path) {
 void MainWindow::openFullSizeGif(const QString &file_path) {
     GifViewer *viewer = new GifViewer(file_path);
     connect(viewer, &GifViewer::copyRequested, this, &MainWindow::copyGifToClipboard);
+    connect(viewer, &GifViewer::deleteRequested, this, &MainWindow::deleteGif);
     connect(viewer, &GifViewer::renameRequested, this, &MainWindow::renameGif);
     viewer->show();
+}
+
+//TODO ugly work on fullSizeGif mode
+void MainWindow::deleteGif(const QString &file_path) {
+    QFileInfo file_info(file_path);
+
+    if (!file_info.exists()) {
+        qWarning() << "File does not exist:" << file_path;
+        QMessageBox::critical(this, tr("Error"), tr("File does not exist."));
+        return;
+    }
+
+    if (!showDeleteConfirmationDialog(file_info.fileName())) {
+        return;
+    }
+
+    QFile file(file_path);
+    if (!file.remove()) {
+        qWarning() << "Failed to delete file:" << file_path;
+        QMessageBox::critical(this, tr("Error"),
+                              tr("Failed to delete file: %1").arg(file_info.fileName()));
+        return;
+    }
+
+    qInfo() << "File deleted:" << file_path;
+    loadGifsFromFolder(current_folder);
+}
+
+bool MainWindow::showDeleteConfirmationDialog(const QString &file_name) {
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this,
+        tr("Confirm Deletion"),
+        tr("Are you sure you want to delete '%1'?").arg(file_name),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No  // Default to "No"
+        );
+
+    return reply == QMessageBox::Yes;
 }
 
 void MainWindow::renameGif(const QString &file_path) {

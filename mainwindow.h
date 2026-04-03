@@ -25,6 +25,7 @@ private slots:
     void copyGifToClipboard (const QString &file_path);
     void animateIfVisible();
     void openFullSizeGif(const QString &file_path);
+    void deleteGif(const QString &file_path);
     void renameGif(const QString &file_path);
 
 private:
@@ -32,6 +33,7 @@ private:
     void clearItems();
     void loadGifsFromFolder(const QString &folder_path);
     bool isWidgetVisibleInViewport(QWidget *w);
+    bool showDeleteConfirmationDialog(const QString &file_name);
 
     struct GifItem { //mby need dont use struct TODO
         ClickableLabel *label = nullptr;
