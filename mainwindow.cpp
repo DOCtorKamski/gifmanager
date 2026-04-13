@@ -57,13 +57,13 @@ void MainWindow::chooseFolder() {
 
 //Googled this func
 void MainWindow::clearItems() {
-    for (auto it = items.begin(); it != items.end(); ++it) {
-        if (it->movie) {
-            it->movie->stop();
-            it->movie->deleteLater();
+    for (auto &item : items) {
+        if (item.movie) {
+            item.movie->stop();
+            item.movie->deleteLater();
         }
-        if (it->label) {
-            it->label->deleteLater();
+        if (item.label) {
+            item.label->deleteLater();
         }
     }
     items.clear();
@@ -90,7 +90,6 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
             if (!fi.fileName().toLower().contains(query)) continue;
         }
 
-        //TODO create new func for this
         ClickableLabel *label = new ClickableLabel(this);
         label->setFixedSize(thumbnailSize);
         label->setAlignment(Qt::AlignCenter);
@@ -116,13 +115,12 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
                 label->setPixmap(pm);
             }
         });
-        //TODO create new func for this
 
         ui->gridLayout->addWidget(label, row, col);
         GifItem gi;
         gi.label = label;
         gi.movie = movie;
-        items.insert(label, gi);
+        items.append({label, movie});
 
         col++;
         if (col >= columns) { col = 0; row++; }
@@ -150,7 +148,8 @@ void MainWindow::animateIfVisible() {
         if (is_visible && !is_running) {
             item.movie->setPaused(false);
             item.movie->start();
-        } else if (!is_visible && is_running) {
+        }
+        else if (!is_visible && is_running) {
             item.movie->setPaused(true);
         }
     }
@@ -246,13 +245,15 @@ void MainWindow::renameGif(const QString &file_path) {
     QString old_name = fi.baseName();
     QString extension = fi.suffix();
 
-    bool ok;
-    QString new_name = QInputDialog::getText(this,
-                                            tr("Rename GIF"),
-                                            tr("Enter new name (without extension):"),
-                                            QLineEdit::Normal,
-                                            old_name,
-                                            &ok);
+    bool ok{};
+    QString new_name = QInputDialog::getText(
+        this,
+        tr("Rename GIF"),
+        tr("Enter new name (without extension):"),
+        QLineEdit::Normal,
+        old_name,
+        &ok
+        );
 
     if (ok && !new_name.isEmpty() && new_name != old_name) {
         if (new_name.contains(QRegularExpression("[/\\\\:*?\"<>|]"))) {
@@ -276,7 +277,8 @@ void MainWindow::renameGif(const QString &file_path) {
 
             QMessageBox::information(this, tr("Success"),
                                      tr("File renamed successfully"));
-        } else {
+        }
+        else {
             QMessageBox::warning(this, tr("Error"),
                                  tr("Failed to rename file"));
         }

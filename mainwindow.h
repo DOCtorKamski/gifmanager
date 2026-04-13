@@ -40,7 +40,7 @@ private:
         QMovie *movie = nullptr;
     };
 
-    QMap<QWidget*, GifItem> items; //TODO need better name
+    QVector<GifItem> items; //TODO need better name
     QString current_folder;
     QStringList all_gif_files; // full paths of all GIFs in folder
     QTimer *search_timer = nullptr;
