@@ -49,7 +49,7 @@ void MainWindow::chooseFolder() {
         directory.setNameFilters(QStringList() << "*.gif" << "*.GIF");
         QFileInfoList files = directory.entryInfoList(QDir::Files, QDir::Name);
         all_gif_files.clear();
-        for (const QFileInfo &fi : files) all_gif_files.append(fi.absoluteFilePath());
+        for (const QFileInfo &fi : std::as_const(files)) all_gif_files.append(fi.absoluteFilePath());
         ui->searchEdit->clear();
         loadGifsFromFolder(current_folder);
     }
@@ -82,7 +82,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
     const bool has_query = !query.isEmpty();
 
     int row = 0, col = 0;
-    for (const QString &file_path : all_gif_files) {
+    for (const QString &file_path : std::as_const(all_gif_files)) {
         QFileInfo fi(file_path);
         if (!fi.exists() || !fi.isFile()) continue;
 
@@ -94,7 +94,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         ClickableLabel *label = new ClickableLabel(this);
         label->setFixedSize(thumbnailSize);
         label->setAlignment(Qt::AlignCenter);
-        label->setStyleSheet("background: #222; border: 1px solid #444;"); //TODO change style
+        label->setStyleSheet("background: #999; border: 1px solid #444;"); //TODO change style
         label->setFilePath(file_path);
         connect(label, &ClickableLabel::copyRequested, this, &MainWindow::copyGifToClipboard);
         connect(label, &ClickableLabel::openFullSizeRequested, this, &MainWindow::openFullSizeGif);
@@ -102,13 +102,14 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
         connect(label, &ClickableLabel::renameRequested, this, &MainWindow::renameGif);
 
         QMovie *movie = new QMovie(file_path);
+        movie->setParent(this);
         movie->setCacheMode(QMovie::CacheAll);
         movie->setScaledSize(thumbnailSize);
         movie->jumpToFrame(0);
         movie->setPaused(true);
 
         // resize GIFs to default size
-        connect(movie, &QMovie::frameChanged, label, [label, movie, this](int){
+        connect(movie, &QMovie::frameChanged, label, [label, movie, this](){
             QImage img = movie->currentImage();
             if (!img.isNull()) {
                 QPixmap pm = QPixmap::fromImage(img.scaled(thumbnailSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -163,6 +164,7 @@ void MainWindow::copyGifToClipboard(const QString &file_path) {
     f.close();
 
     QMimeData *mime = new QMimeData;
+    mime->setParent(this);
     // Raw GIF bytes
     mime->setData("image/gif", data);
 
@@ -193,14 +195,15 @@ void MainWindow::copyGifToClipboard(const QString &file_path) {
 }
 
 void MainWindow::openFullSizeGif(const QString &file_path) {
-    GifViewer *viewer = new GifViewer(file_path);
+    GifViewer *viewer = new GifViewer(file_path, this);
     connect(viewer, &GifViewer::copyRequested, this, &MainWindow::copyGifToClipboard);
     connect(viewer, &GifViewer::deleteRequested, this, &MainWindow::deleteGif);
     connect(viewer, &GifViewer::renameRequested, this, &MainWindow::renameGif);
     viewer->show();
 }
 
-//TODO ugly work on fullSizeGif mode
+//TODO ugly work on fullSizeGif mode and dont work on Windows
+//because need clean before delete
 void MainWindow::deleteGif(const QString &file_path) {
     QFileInfo file_info(file_path);
 
