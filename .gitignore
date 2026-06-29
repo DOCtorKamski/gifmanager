@@ -17,6 +17,7 @@
 *.qm
 .#*
 *.*#
+AGENTS.md
 core
 !core/
 tags

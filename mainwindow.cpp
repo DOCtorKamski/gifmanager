@@ -315,6 +315,21 @@ void MainWindow::deleteGif(const QString &file_path) {
         return;
     }
 
+    // TODO do fuc for this
+    {
+        QMutexLocker locker(&items_mutex);
+        for (int i = items.size() - 1; i >= 0; --i) {
+            if (items[i].label && items[i].label->filePath() == file_path) {
+                if (items[i].movie) {
+                    items[i].movie->stop();
+                    delete items[i].movie;
+                }
+                ui->gridLayout->removeWidget(items[i].label);
+                items[i].label->deleteLater();
+                items.removeAt(i);
+            }
+        }
+    }
     QFile file(file_path);
     if (!file.remove()) {
         qWarning() << "Failed to delete file:" << file_path;
@@ -374,6 +389,21 @@ void MainWindow::renameGif(const QString &file_path) {
             return;
         }
 
+        // TODO do fuc for this
+        {
+            QMutexLocker locker(&items_mutex);
+            for (int i = items.size() - 1; i >= 0; --i) {
+                if (items[i].label && items[i].label->filePath() == file_path) {
+                    if (items[i].movie) {
+                        items[i].movie->stop();
+                        delete items[i].movie;
+                    }
+                    ui->gridLayout->removeWidget(items[i].label);
+                    items[i].label->deleteLater();
+                    items.removeAt(i);
+                }
+            }
+        }
         if (QFile::rename(file_path, new_file_path)) {
             {
                 QMutexLocker locker(&files_mutex);

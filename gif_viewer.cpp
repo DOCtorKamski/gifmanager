@@ -31,7 +31,8 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
 GifViewer::~GifViewer() {
     if (movie) {
         movie->stop();
-        movie->deleteLater();
+        delete movie;
+        movie = nullptr;
     }
 }
 
@@ -56,9 +57,21 @@ void GifViewer::contextMenuEvent(QContextMenuEvent *event) {
         emit copyRequested(file_path);
     }
     else if (act == delete_act) {
+        if (movie) {
+            movie->stop();
+            delete movie;
+            movie = nullptr;
+        }
+        close();
         emit deleteRequested(file_path);
     }
     else if (act == rename_act) {
+        if (movie) {
+            movie->stop();
+            delete movie;
+            movie = nullptr;
+        }
+        close();
         emit renameRequested(file_path);
     }
 }

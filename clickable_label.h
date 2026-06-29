@@ -9,6 +9,7 @@ class ClickableLabel : public QLabel {
     Q_OBJECT
 public:
     explicit ClickableLabel(QWidget *parent = nullptr);
+    QString filePath() const { return file_path; }
     void setFilePath(const QString &p);
 
 protected:
