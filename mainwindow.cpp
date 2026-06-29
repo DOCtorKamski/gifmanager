@@ -16,6 +16,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QResizeEvent>
+#include <QShortcut>
 #include <QScrollBar>
 #include <QUrl>
 
@@ -56,6 +57,9 @@ MainWindow::MainWindow(QWidget *parent)
             visibility_timer, qOverload<>(&QTimer::start));
     connect(ui->scrollArea->horizontalScrollBar(), &QScrollBar::valueChanged,
             visibility_timer, qOverload<>(&QTimer::start));
+
+    auto *copy_shortcut = new QShortcut(QKeySequence(tr("Ctrl+C")), this);
+    connect(copy_shortcut, &QShortcut::activated, this, &MainWindow::copyGifUnderMouse);
 }
 
 void MainWindow::chooseFolder() {
@@ -325,6 +329,21 @@ void MainWindow::deleteGif(const QString &file_path) {
     }
 
     loadGifsFromFolder(current_folder);
+}
+
+void MainWindow::copyGifUnderMouse() {
+    QString path;
+    {
+        QMutexLocker locker(&items_mutex);
+        for (const auto &item : items) {
+            if (item.label && item.label->underMouse()) {
+                path = item.label->filePath();
+                break;
+            }
+        }
+    }
+    if (!path.isEmpty())
+        copyGifToClipboard(path);
 }
 
 void MainWindow::releaseGifItem(const QString &file_path) {

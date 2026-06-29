@@ -4,6 +4,7 @@
 #include <QMouseEvent>
 #include <QContextMenuEvent>
 #include <QMenu>
+#include <QShortcut>
 
 GifViewer::GifViewer(const QString &file_path, QWidget *parent)
     : QWidget(parent), file_path(file_path)

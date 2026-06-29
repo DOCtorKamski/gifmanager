@@ -39,6 +39,7 @@ private:
     void clearItems();
     void loadGifsFromFolder(const QString &folder_path);
     bool isWidgetVisibleInViewport(QWidget *w) const;
+    void copyGifUnderMouse();
     void releaseGifItem(const QString &file_path);
     bool showDeleteConfirmationDialog(const QString &file_name);
 
