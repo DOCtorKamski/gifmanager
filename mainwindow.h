@@ -38,7 +38,8 @@ private:
     void safeStopLoading();
     void clearItems();
     void loadGifsFromFolder(const QString &folder_path);
-    bool isWidgetVisibleInViewport(QWidget *w);
+    bool isWidgetVisibleInViewport(QWidget *w) const;
+    void releaseGifItem(const QString &file_path);
     bool showDeleteConfirmationDialog(const QString &file_name);
 
     struct GifItem {

@@ -1,17 +1,23 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "clickable_label.h"
 #include "gif_viewer.h"
-#include <QLabel>
-#include <QResizeEvent>
-#include <QFileDialog>
-#include <QMimeData>
+#include <QApplication>
 #include <QClipboard>
-#include <QScrollBar>
-#include <QInputDialog>
-#include <QMessageBox>
-#include <QRegularExpression>
 #include <QDebug>
+#include <QDir>
+#include <QFileDialog>
+#include <QGridLayout>
+#include <QImageReader>
+#include <QInputDialog>
+#include <QLabel>
+#include <QLayoutItem>
+#include <QMessageBox>
+#include <QMimeData>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QResizeEvent>
+#include <QScrollBar>
+#include <QUrl>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -57,7 +63,7 @@ void MainWindow::chooseFolder() {
     if (!dir.isEmpty()) {
         current_folder = dir;
         QDir directory(dir);
-        directory.setNameFilters(QStringList() << "*.gif" << "*.GIF");
+        directory.setNameFilters({"*.gif", "*.GIF"});
         QFileInfoList files = directory.entryInfoList(QDir::Files, QDir::Name);
 
         {
@@ -83,12 +89,8 @@ void MainWindow::safeStopLoading() {
 
     if (loader_thread) {
         if (loader_thread->isRunning()) {
-            loader_thread->quit();
-
-            if (!loader_thread->wait(3000)) {
-                qWarning() << "Loader thread timeout, terminating...";
-                loader_thread->terminate();
-                loader_thread->wait();
+            if (!loader_thread->wait(5000)) {
+                qWarning() << "Loader thread did not stop within timeout";
             }
         }
         delete loader_thread;
@@ -212,8 +214,9 @@ void MainWindow::onGifLoaded(quint64 load_id, const LoadedGifData &data) {
         }
     });
 
-    int row = items.count() / columns;
-    int col = items.count() % columns;
+    int count = items.size();
+    int row = count / columns;
+    int col = count % columns;
     ui->gridLayout->addWidget(label, row, col);
 
     GifItem gi;
@@ -236,7 +239,7 @@ void MainWindow::onLoadingFinished(quint64 load_id) {
     qDebug() << "Loading finished";
 }
 
-bool MainWindow::isWidgetVisibleInViewport(QWidget *w) {
+bool MainWindow::isWidgetVisibleInViewport(QWidget *w) const {
     if (!w) return false;
     QRect viewport_rect = ui->scrollArea->viewport()->rect();
     QPoint w_top_left = w->mapTo(ui->scrollArea->viewport(), QPoint(0, 0));
@@ -264,26 +267,15 @@ void MainWindow::animateIfVisible() {
 }
 
 void MainWindow::copyGifToClipboard(const QString &file_path) {
-    QFile f(file_path);
-    if (!f.open(QIODevice::ReadOnly)) return;
-    QByteArray data = f.readAll();
-    f.close();
-
     QMimeData *mime = new QMimeData;
-    mime->setData("image/gif", data);
-    mime->setData("application/octet-stream", data);
+
     mime->setData("application/x-qt-windows-mime;value=\"FileNameW\"",
                   QFileInfo(file_path).fileName().toUtf8());
 
-    QMovie tmpMovie(file_path);
-    if (tmpMovie.isValid()) {
-        tmpMovie.start();
-        tmpMovie.jumpToFrame(0);
-        QImage img = tmpMovie.currentImage();
-        if (!img.isNull()) {
-            mime->setImageData(QVariant::fromValue(QPixmap::fromImage(img)));
-        }
-        tmpMovie.stop();
+    QImageReader reader(file_path);
+    QImage img = reader.read();
+    if (!img.isNull()) {
+        mime->setImageData(QVariant::fromValue(QPixmap::fromImage(img)));
     }
 
     QList<QUrl> urls;
@@ -315,21 +307,8 @@ void MainWindow::deleteGif(const QString &file_path) {
         return;
     }
 
-    // TODO do fuc for this
-    {
-        QMutexLocker locker(&items_mutex);
-        for (int i = items.size() - 1; i >= 0; --i) {
-            if (items[i].label && items[i].label->filePath() == file_path) {
-                if (items[i].movie) {
-                    items[i].movie->stop();
-                    delete items[i].movie;
-                }
-                ui->gridLayout->removeWidget(items[i].label);
-                items[i].label->deleteLater();
-                items.removeAt(i);
-            }
-        }
-    }
+    releaseGifItem(file_path);
+
     QFile file(file_path);
     if (!file.remove()) {
         qWarning() << "Failed to delete file:" << file_path;
@@ -346,6 +325,21 @@ void MainWindow::deleteGif(const QString &file_path) {
     }
 
     loadGifsFromFolder(current_folder);
+}
+
+void MainWindow::releaseGifItem(const QString &file_path) {
+    QMutexLocker locker(&items_mutex);
+    for (int i = items.size() - 1; i >= 0; --i) {
+        if (items[i].label && items[i].label->filePath() == file_path) {
+            if (items[i].movie) {
+                items[i].movie->stop();
+                delete items[i].movie;
+            }
+            ui->gridLayout->removeWidget(items[i].label);
+            items[i].label->deleteLater();
+            items.removeAt(i);
+        }
+    }
 }
 
 bool MainWindow::showDeleteConfirmationDialog(const QString &file_name) {
@@ -381,7 +375,7 @@ void MainWindow::renameGif(const QString &file_path) {
             return;
         }
 
-        QString new_file_path = fi.absolutePath() + "/" + new_name + "." + extension;
+        QString new_file_path = QDir(fi.absolutePath()).filePath(new_name + "." + extension);
 
         if (QFile::exists(new_file_path)) {
             QMessageBox::warning(this, tr("File Exists"),
@@ -389,21 +383,8 @@ void MainWindow::renameGif(const QString &file_path) {
             return;
         }
 
-        // TODO do fuc for this
-        {
-            QMutexLocker locker(&items_mutex);
-            for (int i = items.size() - 1; i >= 0; --i) {
-                if (items[i].label && items[i].label->filePath() == file_path) {
-                    if (items[i].movie) {
-                        items[i].movie->stop();
-                        delete items[i].movie;
-                    }
-                    ui->gridLayout->removeWidget(items[i].label);
-                    items[i].label->deleteLater();
-                    items.removeAt(i);
-                }
-            }
-        }
+        releaseGifItem(file_path);
+
         if (QFile::rename(file_path, new_file_path)) {
             {
                 QMutexLocker locker(&files_mutex);

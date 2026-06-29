@@ -1,5 +1,5 @@
-#ifndef CLICKABLELABE_H
-#define CLICKABLELABE_H
+#ifndef CLICKABLELABEL_H
+#define CLICKABLELABEL_H
 
 #include <QLabel>
 #include <QContextMenuEvent>
@@ -26,4 +26,4 @@ private:
     QString file_path;
 };
 
-#endif // CLICKABLELABE_H
+#endif // CLICKABLELABEL_H

@@ -1,8 +1,7 @@
 #include "gif_loader_worker.h"
 #include <QFileInfo>
-#include <QMovie>
+#include <QImageReader>
 #include <QDebug>
-#include <QThread>
 
 GifLoaderWorker::GifLoaderWorker(const QStringList &files,
                                  const QSize &thumb_size,
@@ -24,8 +23,6 @@ void GifLoaderWorker::requestStop() {
 void GifLoaderWorker::process() {
     qDebug() << "Worker started, files count:" << file_paths.count() << "load_id:" << load_id;
 
-    should_stop.storeRelease(0);
-
     int total = file_paths.count();
     int current = 0;
 
@@ -43,25 +40,11 @@ void GifLoaderWorker::process() {
             continue;
         }
 
-        if (!fi.exists() || !fi.isFile()) {
-            current++;
-            continue;
-        }
-
-        QMovie tmpMovie(file_path);
-        tmpMovie.setCacheMode(QMovie::CacheAll);
-        tmpMovie.setScaledSize(thumbnail_size);
-
-        if (!tmpMovie.isValid()) {
-            qWarning() << "Invalid GIF file:" << file_path;
-            current++;
-            continue;
-        }
-
-        tmpMovie.jumpToFrame(0);
+        QImageReader reader(file_path);
+        reader.setScaledSize(thumbnail_size);
 
         QPixmap thumbnail;
-        QImage img = tmpMovie.currentImage();
+        QImage img = reader.read();
         if (!img.isNull()) {
             thumbnail = QPixmap::fromImage(
                 img.scaled(thumbnail_size, Qt::KeepAspectRatio,
@@ -84,8 +67,6 @@ void GifLoaderWorker::process() {
             emit finished(load_id);
             return;
         }
-
-        QThread::msleep(1);
     }
 
     qDebug() << "Worker finished normally, processed:" << current << "/" << total << "load_id:" << load_id;

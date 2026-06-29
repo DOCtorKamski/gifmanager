@@ -20,8 +20,14 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
 
     movie = new QMovie(file_path);
     movie->setCacheMode(QMovie::CacheAll);
-    image_label->setMovie(movie);
-    movie->start();
+    if (!movie->isValid()) {
+        delete movie;
+        movie = nullptr;
+        image_label->setText(tr("Failed to load GIF"));
+    } else {
+        image_label->setMovie(movie);
+        movie->start();
+    }
 
     layout->addWidget(image_label);
     setLayout(layout);
@@ -29,11 +35,7 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
 }
 
 GifViewer::~GifViewer() {
-    if (movie) {
-        movie->stop();
-        delete movie;
-        movie = nullptr;
-    }
+    delete movie;
 }
 
 void GifViewer::mousePressEvent(QMouseEvent *event) {
@@ -41,7 +43,8 @@ void GifViewer::mousePressEvent(QMouseEvent *event) {
         close();
     }
     else if (event->button() == Qt::RightButton) {
-        contextMenuEvent(new QContextMenuEvent(QContextMenuEvent::Mouse, event->pos()));
+        QContextMenuEvent ce(QContextMenuEvent::Mouse, event->pos());
+        contextMenuEvent(&ce);
     }
     QWidget::mousePressEvent(event);
 }
