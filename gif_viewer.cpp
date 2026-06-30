@@ -30,7 +30,13 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
         movie->start();
     }
 
-    layout->addWidget(image_label);
+    file_name_label = new QLabel(QFileInfo(file_path).fileName());
+    file_name_label->setAlignment(Qt::AlignCenter);
+    file_name_label->setStyleSheet("background: #333; color: #fff; padding: 4px;");
+    layout->addWidget(file_name_label, 0);
+
+    layout->addWidget(image_label, 1);
+
     setLayout(layout);
     resize(800, 600);
 }

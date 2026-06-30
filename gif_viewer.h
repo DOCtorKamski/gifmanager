@@ -22,6 +22,7 @@ signals:
 
 private:
     QLabel *image_label;
+    QLabel *file_name_label;
     QMovie *movie;
     QString file_path;
 };
