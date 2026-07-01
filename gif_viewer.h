@@ -21,9 +21,9 @@ signals:
     void renameRequested(const QString &file_path);
 
 private:
-    QLabel *image_label;
-    QLabel *file_name_label;
-    QMovie *movie;
+    QLabel *image_label = nullptr;
+    QLabel *file_name_label = nullptr;
+    QMovie *movie = nullptr;
     QString file_path;
 };
 

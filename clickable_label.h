@@ -10,7 +10,7 @@ class ClickableLabel : public QLabel {
 public:
     explicit ClickableLabel(QWidget *parent = nullptr);
     QString filePath() const { return file_path; }
-    void setFilePath(const QString &p);
+    void setFilePath(const QString &new_file_path);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;

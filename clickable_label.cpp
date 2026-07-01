@@ -3,14 +3,15 @@
 ClickableLabel::ClickableLabel(QWidget *parent)
     : QLabel(parent) {}
 
-void ClickableLabel::setFilePath(const QString &p) {
-    file_path = p;
+void ClickableLabel::setFilePath(const QString &new_file_path) {
+    file_path = new_file_path;
 }
 
 void ClickableLabel::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         emit openFullSizeRequested(file_path);
     }
+    //contextMenuEvent triggered automatically by Qt when the user right-clicks the widget
     QLabel::mousePressEvent(event);
 }
 

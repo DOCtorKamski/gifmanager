@@ -15,11 +15,11 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    image_label = new QLabel();
+    image_label = new QLabel(this);
     image_label->setAlignment(Qt::AlignCenter);
     image_label->setStyleSheet("background: #000;");
 
-    movie = new QMovie(file_path);
+    movie = new QMovie(file_path, {}, this);
     movie->setCacheMode(QMovie::CacheAll);
     if (!movie->isValid()) {
         delete movie;
@@ -30,7 +30,7 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
         movie->start();
     }
 
-    file_name_label = new QLabel(QFileInfo(file_path).fileName());
+    file_name_label = new QLabel(QFileInfo(file_path).fileName(), this);
     file_name_label->setAlignment(Qt::AlignCenter);
     file_name_label->setStyleSheet("background: #333; color: #fff; padding: 4px;");
     layout->addWidget(file_name_label, 0);
@@ -42,17 +42,14 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
 }
 
 GifViewer::~GifViewer() {
-    delete movie;
+
 }
 
 void GifViewer::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         close();
     }
-    else if (event->button() == Qt::RightButton) {
-        QContextMenuEvent ce(QContextMenuEvent::Mouse, event->pos());
-        contextMenuEvent(&ce);
-    }
+    //contextMenuEvent triggered automatically by Qt when the user right-clicks the widget
     QWidget::mousePressEvent(event);
 }
 
