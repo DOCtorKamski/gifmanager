@@ -29,9 +29,13 @@ private slots:
     void openFullSizeGif(const QString &file_path);
     void deleteGif(const QString &file_path);
     void renameGif(const QString &file_path);
-    void onWorkerFinished();  // ← НОВОЕ
+    void onWorkerFinished();
 
 private:
+    struct GifItem {
+        ClickableLabel *label = nullptr;
+        QMovie *movie = nullptr;
+    };
     Ui::MainWindow *ui;
     void onGifLoaded(quint64 load_id, const LoadedGifData &data);
     void onLoadingFinished(quint64 load_id);
@@ -42,11 +46,8 @@ private:
     void copyGifUnderMouse();
     void releaseGifItem(const QString &file_path);
     bool showDeleteConfirmationDialog(const QString &file_name);
+    void lazyInitMovie(GifItem &item);
 
-    struct GifItem {
-        ClickableLabel *label = nullptr;
-        QMovie *movie = nullptr;
-    };
 
     QVector<GifItem> items;
     QString current_folder;

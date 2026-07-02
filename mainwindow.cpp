@@ -184,18 +184,10 @@ void MainWindow::onWorkerFinished() {
 
 void MainWindow::onGifLoaded(quint64 load_id, const LoadedGifData &data) {
     if (load_id != current_load_id || !is_loading) {
-        qDebug() << "Ignoring gifLoaded from outdated task:" << load_id << "current:" << current_load_id;
         return;
     }
 
     QMutexLocker locker(&items_mutex);
-
-    QMovie *movie = new QMovie(data.file_path);
-    movie->setParent(this);
-    movie->setCacheMode(QMovie::CacheAll);
-    movie->setScaledSize(thumbnail_size);
-    movie->jumpToFrame(0);
-    movie->setPaused(true);
 
     ClickableLabel *label = new ClickableLabel(this);
     label->setFixedSize(thumbnail_size);
@@ -209,15 +201,6 @@ void MainWindow::onGifLoaded(quint64 load_id, const LoadedGifData &data) {
     connect(label, &ClickableLabel::deleteRequested, this, &MainWindow::deleteGif);
     connect(label, &ClickableLabel::renameRequested, this, &MainWindow::renameGif);
 
-    connect(movie, &QMovie::frameChanged, label, [label, movie](){
-        QImage img = movie->currentImage();
-        if (!img.isNull()) {
-            QPixmap pm = QPixmap::fromImage(img.scaled(label->size(),
-                                                       Qt::KeepAspectRatio, Qt::SmoothTransformation));
-            label->setPixmap(pm);
-        }
-    });
-
     int count = items.size();
     int row = count / columns;
     int col = count % columns;
@@ -225,7 +208,7 @@ void MainWindow::onGifLoaded(quint64 load_id, const LoadedGifData &data) {
 
     GifItem gi;
     gi.label = label;
-    gi.movie = movie;
+    gi.movie = nullptr;
     items.append(gi);
 
     ui->containerWidget->adjustSize();
@@ -255,9 +238,16 @@ void MainWindow::animateIfVisible() {
     QMutexLocker locker(&items_mutex);
 
     for (auto &item : items) {
-        if (!item.label || !item.movie) continue;
+        if (!item.label) continue;
 
         bool is_visible = isWidgetVisibleInViewport(item.label);
+
+        if (is_visible && !item.movie) {
+            lazyInitMovie(item);
+        }
+
+        if (!item.movie) continue;
+
         bool is_running = (item.movie->state() == QMovie::Running);
 
         if (is_visible && !is_running) {
@@ -268,6 +258,26 @@ void MainWindow::animateIfVisible() {
             item.movie->setPaused(true);
         }
     }
+}
+
+void MainWindow::lazyInitMovie(GifItem &item) {
+    QMovie *movie = new QMovie(item.label->filePath());
+    movie->setParent(this);
+    movie->setCacheMode(QMovie::CacheAll);
+    movie->setScaledSize(thumbnail_size);
+    movie->jumpToFrame(0);
+    movie->setPaused(true);
+
+    connect(movie, &QMovie::frameChanged, item.label, [label = item.label, movie](){
+        QImage img = movie->currentImage();
+        if (!img.isNull()) {
+            QPixmap pm = QPixmap::fromImage(img.scaled(label->size(),
+                                                       Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            label->setPixmap(pm);
+        }
+    });
+
+    item.movie = movie;
 }
 
 void MainWindow::copyGifToClipboard(const QString &file_path) {
@@ -311,6 +321,7 @@ void MainWindow::deleteGif(const QString &file_path) {
         return;
     }
 
+    //this need for Windows
     releaseGifItem(file_path);
 
     QFile file(file_path);
@@ -353,6 +364,7 @@ void MainWindow::releaseGifItem(const QString &file_path) {
             if (items[i].movie) {
                 items[i].movie->stop();
                 delete items[i].movie;
+                items[i].movie = nullptr;
             }
             ui->gridLayout->removeWidget(items[i].label);
             items[i].label->deleteLater();
@@ -385,7 +397,7 @@ void MainWindow::renameGif(const QString &file_path) {
         QLineEdit::Normal,
         old_name,
         &ok
-        );
+    );
 
     if (ok && !new_name.isEmpty() && new_name != old_name) {
         if (new_name.contains(QRegularExpression("[/\\\\:*?\"<>|]"))) {
@@ -402,6 +414,7 @@ void MainWindow::renameGif(const QString &file_path) {
             return;
         }
 
+        //this need for Windows
         releaseGifItem(file_path);
 
         if (QFile::rename(file_path, new_file_path)) {
