@@ -163,7 +163,10 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
     connect(current_worker, QOverload<quint64>::of(&GifLoaderWorker::finished),
             this, &MainWindow::onLoadingFinished, Qt::QueuedConnection);
 
-    connect(current_worker, &GifLoaderWorker::finished, this, &MainWindow::onWorkerFinished);
+    connect(current_worker, &GifLoaderWorker::finished, this, [this, load_id = current_load_id]() {
+        if (load_id != current_load_id) return;
+        onWorkerFinished();
+    });
 
     loader_thread->start();
 }
@@ -242,20 +245,23 @@ void MainWindow::animateIfVisible() {
 
         bool is_visible = isWidgetVisibleInViewport(item.label);
 
-        if (is_visible && !item.movie) {
-            lazyInitMovie(item);
-        }
-
-        if (!item.movie) continue;
-
-        bool is_running = (item.movie->state() == QMovie::Running);
-
-        if (is_visible && !is_running) {
-            item.movie->setPaused(false);
-            item.movie->start();
-        }
-        else if (!is_visible && is_running) {
-            item.movie->setPaused(true);
+        if (is_visible) {
+            if (!item.movie) {
+                lazyInitMovie(item);
+            }
+            if (item.movie) {
+                bool is_running = (item.movie->state() == QMovie::Running);
+                if (!is_running) {
+                    item.movie->setPaused(false);
+                    item.movie->start();
+                }
+            }
+        } else {
+            if (item.movie) {
+                item.movie->stop();
+                delete item.movie;
+                item.movie = nullptr;
+            }
         }
     }
 }
@@ -263,7 +269,7 @@ void MainWindow::animateIfVisible() {
 void MainWindow::lazyInitMovie(GifItem &item) {
     QMovie *movie = new QMovie(item.label->filePath());
     movie->setParent(this);
-    movie->setCacheMode(QMovie::CacheAll);
+    movie->setCacheMode(QMovie::CacheNone);
     movie->setScaledSize(thumbnail_size);
     movie->jumpToFrame(0);
     movie->setPaused(true);
