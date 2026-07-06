@@ -60,6 +60,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     auto *copy_shortcut = new QShortcut(QKeySequence(tr("Ctrl+C")), this);
     connect(copy_shortcut, &QShortcut::activated, this, &MainWindow::copyGifUnderMouse);
+
+    auto *search_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F")), this);
+    connect(search_shortcut, &QShortcut::activated, this, [this]() {
+        ui->searchEdit->setFocus();
+        ui->searchEdit->selectAll();
+    });
 }
 
 void MainWindow::chooseFolder() {
