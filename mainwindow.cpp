@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "gif_viewer.h"
+#include "settings_dialog.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QDebug>
@@ -32,6 +33,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     connect(ui->chooseButton, &QPushButton::clicked, this, &MainWindow::chooseFolder);
+    connect(ui->settingButton, &QPushButton::clicked, this, &MainWindow::openSettingsDialog);
+    connect(ui->defaultButton, &QPushButton::clicked, this, &MainWindow::goToDefaultFolder);
 
     search_timer = new QTimer(this);
     search_timer->setSingleShot(true);
@@ -153,7 +156,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
     }
 
     loader_thread = new QThread(this);
-    current_worker = new GifLoaderWorker(files_to_load, thumbnail_size, query, current_load_id);
+    current_worker = new GifLoaderWorker(files_to_load, settings.getThumbnailSize(), query, current_load_id);
     current_worker->moveToThread(loader_thread);
 
     connect(loader_thread, &QThread::started, current_worker, &GifLoaderWorker::process);
@@ -199,7 +202,7 @@ void MainWindow::onGifLoaded(quint64 load_id, const LoadedGifData &data) {
     QMutexLocker locker(&items_mutex);
 
     ClickableLabel *label = new ClickableLabel(this);
-    label->setFixedSize(thumbnail_size);
+    label->setFixedSize(settings.getThumbnailSize());
     label->setAlignment(Qt::AlignCenter);
     label->setStyleSheet("background: #999; border: 1px solid #444;");
     label->setFilePath(data.file_path);
@@ -211,8 +214,8 @@ void MainWindow::onGifLoaded(quint64 load_id, const LoadedGifData &data) {
     connect(label, &ClickableLabel::renameRequested, this, &MainWindow::renameGif);
 
     int count = items.size();
-    int row = count / columns;
-    int col = count % columns;
+    int row = count / settings.getColumns();
+    int col = count % settings.getColumns();
     ui->gridLayout->addWidget(label, row, col);
 
     GifItem gi;
@@ -276,7 +279,7 @@ void MainWindow::lazyInitMovie(GifItem &item) {
     QMovie *movie = new QMovie(item.label->filePath());
     movie->setParent(this);
     movie->setCacheMode(QMovie::CacheNone);
-    movie->setScaledSize(thumbnail_size);
+    movie->setScaledSize(settings.getThumbnailSize());
     movie->jumpToFrame(0);
     movie->setPaused(true);
 
@@ -445,6 +448,42 @@ void MainWindow::renameGif(const QString &file_path) {
             QMessageBox::warning(this, tr("Error"),
                                  tr("Failed to rename file"));
         }
+    }
+}
+
+void MainWindow::goToDefaultFolder() {
+    QString dir = settings.getDefaultFolder();
+    if (dir.isEmpty()) {
+        QMessageBox::information(this, tr("No Default Folder"),
+                                 tr("No default folder is set. Please configure it in Settings."));
+        return;
+    }
+    if (!QDir(dir).exists()) {
+        QMessageBox::warning(this, tr("Folder Not Found"),
+                             tr("The default folder '%1' does not exist.").arg(dir));
+        return;
+    }
+    current_folder = dir;
+    QDir directory(dir);
+    directory.setNameFilters({"*.gif", "*.GIF"});
+    QFileInfoList files = directory.entryInfoList(QDir::Files, QDir::Name);
+    {
+        QMutexLocker locker(&files_mutex);
+        all_gif_files.clear();
+        for (const QFileInfo &fi : std::as_const(files)) {
+            all_gif_files.append(fi.absoluteFilePath());
+        }
+    }
+    ui->searchEdit->clear();
+    loadGifsFromFolder(current_folder);
+}
+
+void MainWindow::openSettingsDialog()
+{
+    SettingsDialog dlg(settings, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        if (!current_folder.isEmpty())
+            loadGifsFromFolder(current_folder);
     }
 }
 

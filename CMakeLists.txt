@@ -16,6 +16,8 @@ qt_add_executable(gifmanager
     gif_viewer.h
     gif_viewer.cpp
     gif_loader_worker.h gif_loader_worker.cpp
+    settings.h settings.cpp
+    settings_dialog.h settings_dialog.cpp
 )
 
 target_link_libraries(gifmanager

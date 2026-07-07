@@ -3,6 +3,7 @@
 
 #include "clickable_label.h"
 #include "gif_loader_worker.h"
+#include "settings.h"
 #include <QMainWindow>
 #include <QMovie>
 #include <QLabel>
@@ -30,6 +31,7 @@ private slots:
     void deleteGif(const QString &file_path);
     void renameGif(const QString &file_path);
     void onWorkerFinished();
+    void goToDefaultFolder();
 
 private:
     struct GifItem {
@@ -47,6 +49,7 @@ private:
     void releaseGifItem(const QString &file_path);
     bool showDeleteConfirmationDialog(const QString &file_name);
     void lazyInitMovie(GifItem &item);
+    void openSettingsDialog();
 
 
     QVector<GifItem> items;
@@ -60,8 +63,7 @@ private:
     QMutex files_mutex;
     bool is_loading = false;
     quint64 current_load_id = 0;
-    const QSize thumbnail_size = QSize(160, 120);
-    const int columns = 3;
+    SettingsManager settings;
 };
 
 #endif // MAINWINDOW_H
