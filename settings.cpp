@@ -6,14 +6,11 @@ SettingsManager::SettingsManager()
 }
 
 QSize SettingsManager::getThumbnailSize() const {
-    int w = settings.value("thumbnail/width", DEFAULT_THUMB_WIDTH).toInt();
-    int h = settings.value("thumbnail/height", DEFAULT_THUMB_HEIGHT).toInt();
-    return QSize(w, h);
+    return settings.value("thumbnail/size", DEFAULT_THUMB_SIZE).toSize();
 }
 
 void SettingsManager::setThumbnailSize(const QSize &size) {
-    settings.setValue("thumbnail/width", size.width());
-    settings.setValue("thumbnail/height", size.height());
+    settings.setValue("thumbnail/size", size);
     settings.sync();
 }
 
@@ -36,6 +33,7 @@ void SettingsManager::setDefaultFolder(const QString &path) {
 }
 
 void SettingsManager::resetToDefaults() {
-    settings.clear();
-    settings.sync();
+    setThumbnailSize(DEFAULT_THUMB_SIZE);
+    setColumns(DEFAULT_COLUMNS);
+    setDefaultFolder(QString());
 }

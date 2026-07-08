@@ -23,8 +23,7 @@ public:
 private:
     QSettings settings;
 
-    static constexpr int DEFAULT_THUMB_WIDTH = 160;
-    static constexpr int DEFAULT_THUMB_HEIGHT = 120;
+    static constexpr QSize DEFAULT_THUMB_SIZE = QSize(160, 120);
     static constexpr int DEFAULT_COLUMNS = 3;
 };
 

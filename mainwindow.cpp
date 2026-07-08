@@ -69,6 +69,7 @@ MainWindow::MainWindow(QWidget *parent)
         ui->searchEdit->setFocus();
         ui->searchEdit->selectAll();
     });
+
 }
 
 void MainWindow::chooseFolder() {
