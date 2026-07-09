@@ -32,13 +32,20 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    ui->gridLayout->setHorizontalSpacing(settings.getGridHorizontalSpacing());
+    ui->gridLayout->setVerticalSpacing(settings.getGridVerticalSpacing());
+
+    QByteArray geom = settings.getWindowGeometry();
+    if (!geom.isEmpty())
+        restoreGeometry(geom);
+
     connect(ui->chooseButton, &QPushButton::clicked, this, &MainWindow::chooseFolder);
     connect(ui->settingButton, &QPushButton::clicked, this, &MainWindow::openSettingsDialog);
     connect(ui->defaultButton, &QPushButton::clicked, this, &MainWindow::goToDefaultFolder);
 
     search_timer = new QTimer(this);
     search_timer->setSingleShot(true);
-    search_timer->setInterval(200);
+    search_timer->setInterval(settings.getSearchDebounceMs());
     connect(search_timer, &QTimer::timeout, this, [this](){
         if (!is_loading && !current_folder.isEmpty()) {
             loadGifsFromFolder(current_folder);
@@ -47,7 +54,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     visibility_timer = new QTimer(this);
     visibility_timer->setSingleShot(true);
-    visibility_timer->setInterval(80);
+    visibility_timer->setInterval(settings.getVisibilityDebounceMs());
     connect(visibility_timer, &QTimer::timeout, this, &MainWindow::animateIfVisible);
 
     connect(ui->searchEdit, &QLineEdit::textChanged, this, [this](const QString&){
@@ -205,7 +212,7 @@ void MainWindow::onGifLoaded(quint64 load_id, const LoadedGifData &data) {
     ClickableLabel *label = new ClickableLabel(this);
     label->setFixedSize(settings.getThumbnailSize());
     label->setAlignment(Qt::AlignCenter);
-    label->setStyleSheet("background: #999; border: 1px solid #444;");
+    label->setStyleSheet(settings.getThumbnailStyle());
     label->setFilePath(data.file_path);
     label->setPixmap(data.thumbnail);
 
@@ -317,7 +324,9 @@ void MainWindow::copyGifToClipboard(const QString &file_path) {
 }
 
 void MainWindow::openFullSizeGif(const QString &file_path) {
-    GifViewer *viewer = new GifViewer(file_path, this);
+    GifViewer *viewer = new GifViewer(file_path, settings.getViewerSize(),
+                                       settings.getViewerBgStyle(),
+                                       settings.getViewerLabelStyle(), this);
     connect(viewer, &GifViewer::copyRequested, this, &MainWindow::copyGifToClipboard);
     connect(viewer, &GifViewer::deleteRequested, this, &MainWindow::deleteGif);
     connect(viewer, &GifViewer::renameRequested, this, &MainWindow::renameGif);
@@ -486,6 +495,12 @@ void MainWindow::openSettingsDialog()
         if (!current_folder.isEmpty())
             loadGifsFromFolder(current_folder);
     }
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    settings.setWindowGeometry(saveGeometry());
+    QMainWindow::closeEvent(event);
 }
 
 MainWindow::~MainWindow()

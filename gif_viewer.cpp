@@ -6,8 +6,11 @@
 #include <QMenu>
 #include <QShortcut>
 
-GifViewer::GifViewer(const QString &file_path, QWidget *parent)
-    : QWidget(parent), file_path(file_path)
+GifViewer::GifViewer(const QString &file_path, QSize viewer_size,
+                     const QString &bg_style, const QString &label_style,
+                     QWidget *parent)
+    : QWidget(parent), file_path(file_path), viewer_size(viewer_size),
+      bg_style(bg_style), label_style(label_style)
 {
     setWindowTitle(QFileInfo(file_path).fileName());
     setAttribute(Qt::WA_DeleteOnClose);
@@ -17,7 +20,7 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
 
     image_label = new QLabel(this);
     image_label->setAlignment(Qt::AlignCenter);
-    image_label->setStyleSheet("background: #000;");
+    image_label->setStyleSheet(bg_style);
 
     movie = new QMovie(file_path, {}, this);
     movie->setCacheMode(QMovie::CacheAll);
@@ -32,13 +35,13 @@ GifViewer::GifViewer(const QString &file_path, QWidget *parent)
 
     file_name_label = new QLabel(QFileInfo(file_path).fileName(), this);
     file_name_label->setAlignment(Qt::AlignCenter);
-    file_name_label->setStyleSheet("background: #333; color: #fff; padding: 4px;");
+    file_name_label->setStyleSheet(label_style);
     layout->addWidget(file_name_label, 0);
 
     layout->addWidget(image_label, 1);
 
     setLayout(layout);
-    resize(800, 600);
+    resize(viewer_size);
 }
 
 GifViewer::~GifViewer() {
@@ -49,7 +52,6 @@ void GifViewer::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         close();
     }
-    //contextMenuEvent triggered automatically by Qt when the user right-clicks the widget
     QWidget::mousePressEvent(event);
 }
 

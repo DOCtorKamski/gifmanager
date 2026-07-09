@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    a.setOrganizationName("gifmanager");
+    a.setOrganizationName("softBy_DOCtorKamski");
     a.setApplicationName("gifmanager");
     MainWindow w;
     w.show();

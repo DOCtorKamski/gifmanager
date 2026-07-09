@@ -4,6 +4,7 @@
 #include "clickable_label.h"
 #include "gif_loader_worker.h"
 #include "settings.h"
+#include <QCloseEvent>
 #include <QMainWindow>
 #include <QMovie>
 #include <QLabel>
@@ -33,6 +34,9 @@ private slots:
     void onWorkerFinished();
     void goToDefaultFolder();
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private:
     struct GifItem {
         ClickableLabel *label = nullptr;
@@ -50,7 +54,6 @@ private:
     bool showDeleteConfirmationDialog(const QString &file_name);
     void lazyInitMovie(GifItem &item);
     void openSettingsDialog();
-
 
     QVector<GifItem> items;
     QString current_folder;
