@@ -6,16 +6,18 @@
 #include <QPushButton>
 #include <QSpinBox>
 
-class SettingsManager;
-
 class SettingsDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit SettingsDialog(SettingsManager &mgr, QWidget *parent = nullptr);
+    explicit SettingsDialog(QWidget *parent = nullptr);
+
+signals:
+    void applied();
 
 private:
-    SettingsManager &settings;
+    void writeSettings();
+    void refreshUI();
 
     QSpinBox *width_spin;
     QSpinBox *height_spin;

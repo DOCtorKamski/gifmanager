@@ -66,7 +66,6 @@ private:
     QMutex files_mutex;
     bool is_loading = false;
     quint64 current_load_id = 0;
-    SettingsManager settings;
 };
 
 #endif // MAINWINDOW_H

@@ -1,12 +1,13 @@
 #include "settings.h"
 
-static const QString DEFAULT_THUMB_STYLE = "background: #999; border: 1px solid #444;";
-static const QString DEFAULT_VIEWER_BG = "background: #000;";
-static const QString DEFAULT_VIEWER_LABEL = "background: #333; color: #fff; padding: 4px;";
-
 SettingsManager::SettingsManager()
     : settings("softBy_DOCtorKamski", "gifmanager")
 {
+}
+
+SettingsManager& SettingsManager::instance() {
+    static SettingsManager inst;
+    return inst;
 }
 
 QSize SettingsManager::getThumbnailSize() const {
@@ -28,7 +29,7 @@ void SettingsManager::setColumns(int columns) {
 }
 
 QString SettingsManager::getThumbnailStyle() const {
-    return settings.value(KEY_THUMB_STYLE, DEFAULT_THUMB_STYLE).toString();
+    return settings.value(KEY_THUMB_STYLE, defaultThumbnailStyle()).toString();
 }
 
 void SettingsManager::setThumbnailStyle(const QString &style) {
@@ -73,7 +74,7 @@ void SettingsManager::setViewerSize(const QSize &size) {
 }
 
 QString SettingsManager::getViewerBgStyle() const {
-    return settings.value(KEY_VIEWER_BG_STYLE, DEFAULT_VIEWER_BG).toString();
+    return settings.value(KEY_VIEWER_BG_STYLE, defaultViewerBgStyle()).toString();
 }
 
 void SettingsManager::setViewerBgStyle(const QString &style) {
@@ -82,7 +83,7 @@ void SettingsManager::setViewerBgStyle(const QString &style) {
 }
 
 QString SettingsManager::getViewerLabelStyle() const {
-    return settings.value(KEY_VIEWER_LABEL_STYLE, DEFAULT_VIEWER_LABEL).toString();
+    return settings.value(KEY_VIEWER_LABEL_STYLE, defaultViewerLabelStyle()).toString();
 }
 
 void SettingsManager::setViewerLabelStyle(const QString &style) {

@@ -1,4 +1,5 @@
 #include "gif_viewer.h"
+#include "settings.h"
 #include <QVBoxLayout>
 #include <QFileInfo>
 #include <QMouseEvent>
@@ -6,11 +7,8 @@
 #include <QMenu>
 #include <QShortcut>
 
-GifViewer::GifViewer(const QString &file_path, QSize viewer_size,
-                     const QString &bg_style, const QString &label_style,
-                     QWidget *parent)
-    : QWidget(parent), file_path(file_path), viewer_size(viewer_size),
-      bg_style(bg_style), label_style(label_style)
+GifViewer::GifViewer(const QString &file_path, QWidget *parent)
+    : QWidget(parent), file_path(file_path)
 {
     setWindowTitle(QFileInfo(file_path).fileName());
     setAttribute(Qt::WA_DeleteOnClose);
@@ -20,7 +18,7 @@ GifViewer::GifViewer(const QString &file_path, QSize viewer_size,
 
     image_label = new QLabel(this);
     image_label->setAlignment(Qt::AlignCenter);
-    image_label->setStyleSheet(bg_style);
+    image_label->setStyleSheet(SettingsManager::instance().getViewerBgStyle());
 
     movie = new QMovie(file_path, {}, this);
     movie->setCacheMode(QMovie::CacheAll);
@@ -35,13 +33,13 @@ GifViewer::GifViewer(const QString &file_path, QSize viewer_size,
 
     file_name_label = new QLabel(QFileInfo(file_path).fileName(), this);
     file_name_label->setAlignment(Qt::AlignCenter);
-    file_name_label->setStyleSheet(label_style);
+    file_name_label->setStyleSheet(SettingsManager::instance().getViewerLabelStyle());
     layout->addWidget(file_name_label, 0);
 
     layout->addWidget(image_label, 1);
 
     setLayout(layout);
-    resize(viewer_size);
+    resize(SettingsManager::instance().getViewerSize());
 }
 
 GifViewer::~GifViewer() {

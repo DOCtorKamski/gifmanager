@@ -8,7 +8,10 @@
 
 class SettingsManager {
 public:
-    SettingsManager();
+    static SettingsManager& instance();
+
+    SettingsManager(const SettingsManager&) = delete;
+    SettingsManager& operator=(const SettingsManager&) = delete;
 
     QSize getThumbnailSize() const;
     void setThumbnailSize(const QSize &size);
@@ -49,15 +52,27 @@ public:
     void resetToDefaults();
 
 private:
+    SettingsManager();
+
     QSettings settings;
 
-    static constexpr QSize DEFAULT_THUMB_SIZE = QSize(160, 120);
+    static constexpr QSize DEFAULT_THUMB_SIZE = QSize(200, 160);
     static constexpr int DEFAULT_COLUMNS = 3;
     static constexpr int DEFAULT_SEARCH_DEBOUNCE = 200;
-    static constexpr int DEFAULT_VISIBILITY_DEBOUNCE = 80;
+    static constexpr int DEFAULT_VISIBILITY_DEBOUNCE = 50;
     static constexpr QSize DEFAULT_VIEWER_SIZE = QSize(800, 600);
     static constexpr int DEFAULT_GRID_HSPACING = 6;
     static constexpr int DEFAULT_GRID_VSPACING = 4;
+
+    static inline QString defaultThumbnailStyle() {
+        return "background: #999; border: 1px solid #444;";
+    }
+    static inline QString defaultViewerBgStyle() {
+        return "background: #000;";
+    }
+    static inline QString defaultViewerLabelStyle() {
+        return "background: #333; color: #fff; padding: 4px;";
+    }
 
     static constexpr const char* KEY_THUMB_SIZE = "thumbnail/size";
     static constexpr const char* KEY_COLUMNS = "layout/columns";
