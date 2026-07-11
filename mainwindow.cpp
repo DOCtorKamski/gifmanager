@@ -490,6 +490,10 @@ void MainWindow::openSettingsDialog()
 {
     SettingsDialog dlg(this);
     connect(&dlg, &SettingsDialog::applied, this, [this]() {
+        search_timer->setInterval(SettingsManager::instance().getSearchDebounceMs());
+        visibility_timer->setInterval(SettingsManager::instance().getVisibilityDebounceMs());
+        ui->gridLayout->setHorizontalSpacing(SettingsManager::instance().getGridHorizontalSpacing());
+        ui->gridLayout->setVerticalSpacing(SettingsManager::instance().getGridVerticalSpacing());
         if (!current_folder.isEmpty())
             loadGifsFromFolder(current_folder);
     });
