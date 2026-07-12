@@ -13,12 +13,15 @@ qt_add_executable(gifmanager
     mainwindow.ui
 
     clickable_label.h clickable_label.cpp
+    gif_thumbnail_grid.h gif_thumbnail_grid.cpp
     gif_viewer.h
     gif_viewer.cpp
     gif_loader_worker.h gif_loader_worker.cpp
     settings.h settings.cpp
     settings_dialog.h settings_dialog.cpp
 )
+
+target_include_directories(gifmanager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(gifmanager
     PRIVATE

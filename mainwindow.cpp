@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "gif_thumbnail_grid.h"
 #include "gif_viewer.h"
 #include "settings_dialog.h"
 #include <QApplication>
@@ -7,16 +8,12 @@
 #include <QDebug>
 #include <QDir>
 #include <QFileDialog>
-#include <QGridLayout>
 #include <QImageReader>
 #include <QInputDialog>
-#include <QLabel>
-#include <QLayoutItem>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPushButton>
 #include <QRegularExpression>
-#include <QResizeEvent>
 #include <QShortcut>
 #include <QScrollBar>
 #include <QUrl>
@@ -32,8 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    ui->gridLayout->setHorizontalSpacing(SettingsManager::instance().getGridHorizontalSpacing());
-    ui->gridLayout->setVerticalSpacing(SettingsManager::instance().getGridVerticalSpacing());
+    ui->containerWidget->setScrollArea(ui->scrollArea);
 
     QByteArray geom = SettingsManager::instance().getWindowGeometry();
     if (!geom.isEmpty())
@@ -55,7 +51,9 @@ MainWindow::MainWindow(QWidget *parent)
     visibility_timer = new QTimer(this);
     visibility_timer->setSingleShot(true);
     visibility_timer->setInterval(SettingsManager::instance().getVisibilityDebounceMs());
-    connect(visibility_timer, &QTimer::timeout, this, &MainWindow::animateIfVisible);
+    connect(visibility_timer, &QTimer::timeout, this, [this]() {
+        ui->containerWidget->playVisibleAnimations();
+    });
 
     connect(ui->searchEdit, &QLineEdit::textChanged, this, [this](const QString&){
         if (!is_loading) {
@@ -67,6 +65,15 @@ MainWindow::MainWindow(QWidget *parent)
             visibility_timer, qOverload<>(&QTimer::start));
     connect(ui->scrollArea->horizontalScrollBar(), &QScrollBar::valueChanged,
             visibility_timer, qOverload<>(&QTimer::start));
+
+    connect(ui->containerWidget, &GifThumbnailGrid::copyRequested,
+            this, &MainWindow::copyGifToClipboard);
+    connect(ui->containerWidget, &GifThumbnailGrid::openFullSizeRequested,
+            this, &MainWindow::openFullSizeGif);
+    connect(ui->containerWidget, &GifThumbnailGrid::deleteRequested,
+            this, &MainWindow::deleteGif);
+    connect(ui->containerWidget, &GifThumbnailGrid::renameRequested,
+            this, &MainWindow::renameGif);
 
     auto *copy_shortcut = new QShortcut(QKeySequence(tr("Ctrl+C")), this);
     connect(copy_shortcut, &QShortcut::activated, this, &MainWindow::copyGifUnderMouse);
@@ -122,26 +129,6 @@ void MainWindow::safeStopLoading() {
     is_loading = false;
 }
 
-void MainWindow::clearItems() {
-    QMutexLocker locker(&items_mutex);
-
-    for (auto &item : items) {
-        if (item.movie) {
-            item.movie->stop();
-            item.movie->deleteLater();
-        }
-        if (item.label) {
-            item.label->deleteLater();
-        }
-    }
-    items.clear();
-
-    QLayoutItem *child;
-    while ((child = ui->gridLayout->takeAt(0)) != nullptr) {
-        delete child;
-    }
-}
-
 void MainWindow::loadGifsFromFolder(const QString &path) {
     if (is_loading) {
         qDebug() << "Already loading, stopping current task...";
@@ -150,7 +137,7 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
 
     qDebug() << "Starting load from:" << path;
 
-    clearItems();
+    ui->containerWidget->clearGrid();
 
     is_loading = true;
     current_load_id++;
@@ -207,31 +194,7 @@ void MainWindow::onGifLoaded(quint64 load_id, const LoadedGifData &data) {
         return;
     }
 
-    QMutexLocker locker(&items_mutex);
-
-    ClickableLabel *label = new ClickableLabel(this);
-    label->setFixedSize(SettingsManager::instance().getThumbnailSize());
-    label->setAlignment(Qt::AlignCenter);
-    label->setStyleSheet(SettingsManager::instance().getThumbnailStyle());
-    label->setFilePath(data.file_path);
-    label->setPixmap(data.thumbnail);
-
-    connect(label, &ClickableLabel::copyRequested, this, &MainWindow::copyGifToClipboard);
-    connect(label, &ClickableLabel::openFullSizeRequested, this, &MainWindow::openFullSizeGif);
-    connect(label, &ClickableLabel::deleteRequested, this, &MainWindow::deleteGif);
-    connect(label, &ClickableLabel::renameRequested, this, &MainWindow::renameGif);
-
-    int count = items.size();
-    int row = count / SettingsManager::instance().getColumns();
-    int col = count % SettingsManager::instance().getColumns();
-    ui->gridLayout->addWidget(label, row, col);
-
-    GifItem gi;
-    gi.label = label;
-    gi.movie = nullptr;
-    items.append(gi);
-
-    ui->containerWidget->adjustSize();
+    ui->containerWidget->addGif(data);
 }
 
 void MainWindow::onLoadingFinished(quint64 load_id) {
@@ -244,63 +207,6 @@ void MainWindow::onLoadingFinished(quint64 load_id) {
     ui->statusbar->showMessage("Ready");
     visibility_timer->start();
     qDebug() << "Loading finished";
-}
-
-bool MainWindow::isWidgetVisibleInViewport(QWidget *w) const {
-    if (!w) return false;
-    QRect viewport_rect = ui->scrollArea->viewport()->rect();
-    QPoint w_top_left = w->mapTo(ui->scrollArea->viewport(), QPoint(0, 0));
-    QRect widgetRect(w_top_left, w->size());
-    return viewport_rect.intersects(widgetRect);
-}
-
-void MainWindow::animateIfVisible() {
-    QMutexLocker locker(&items_mutex);
-
-    for (auto &item : items) {
-        if (!item.label) continue;
-
-        bool is_visible = isWidgetVisibleInViewport(item.label);
-
-        if (is_visible) {
-            if (!item.movie) {
-                lazyInitMovie(item);
-            }
-            if (item.movie) {
-                bool is_running = (item.movie->state() == QMovie::Running);
-                if (!is_running) {
-                    item.movie->setPaused(false);
-                    item.movie->start();
-                }
-            }
-        } else {
-            if (item.movie) {
-                item.movie->stop();
-                delete item.movie;
-                item.movie = nullptr;
-            }
-        }
-    }
-}
-
-void MainWindow::lazyInitMovie(GifItem &item) {
-    QMovie *movie = new QMovie(item.label->filePath());
-    movie->setParent(this);
-    movie->setCacheMode(QMovie::CacheNone);
-    movie->setScaledSize(SettingsManager::instance().getThumbnailSize());
-    movie->jumpToFrame(0);
-    movie->setPaused(true);
-
-    connect(movie, &QMovie::frameChanged, item.label, [label = item.label, movie](){
-        QImage img = movie->currentImage();
-        if (!img.isNull()) {
-            QPixmap pm = QPixmap::fromImage(img.scaled(label->size(),
-                                                       Qt::KeepAspectRatio, Qt::SmoothTransformation));
-            label->setPixmap(pm);
-        }
-    });
-
-    item.movie = movie;
 }
 
 void MainWindow::copyGifToClipboard(const QString &file_path) {
@@ -345,7 +251,7 @@ void MainWindow::deleteGif(const QString &file_path) {
     }
 
     //this need for Windows
-    releaseGifItem(file_path);
+    ui->containerWidget->releaseItem(file_path);
 
     QFile file(file_path);
     if (!file.remove()) {
@@ -366,34 +272,9 @@ void MainWindow::deleteGif(const QString &file_path) {
 }
 
 void MainWindow::copyGifUnderMouse() {
-    QString path;
-    {
-        QMutexLocker locker(&items_mutex);
-        for (const auto &item : items) {
-            if (item.label && item.label->underMouse()) {
-                path = item.label->filePath();
-                break;
-            }
-        }
-    }
+    QString path = ui->containerWidget->filePathUnderMouse();
     if (!path.isEmpty())
         copyGifToClipboard(path);
-}
-
-void MainWindow::releaseGifItem(const QString &file_path) {
-    QMutexLocker locker(&items_mutex);
-    for (int i = items.size() - 1; i >= 0; --i) {
-        if (items[i].label && items[i].label->filePath() == file_path) {
-            if (items[i].movie) {
-                items[i].movie->stop();
-                delete items[i].movie;
-                items[i].movie = nullptr;
-            }
-            ui->gridLayout->removeWidget(items[i].label);
-            items[i].label->deleteLater();
-            items.removeAt(i);
-        }
-    }
 }
 
 bool MainWindow::showDeleteConfirmationDialog(const QString &file_name) {
@@ -438,7 +319,7 @@ void MainWindow::renameGif(const QString &file_path) {
         }
 
         //this need for Windows
-        releaseGifItem(file_path);
+        ui->containerWidget->releaseItem(file_path);
 
         if (QFile::rename(file_path, new_file_path)) {
             {
@@ -492,8 +373,7 @@ void MainWindow::openSettingsDialog()
     connect(&dlg, &SettingsDialog::applied, this, [this]() {
         search_timer->setInterval(SettingsManager::instance().getSearchDebounceMs());
         visibility_timer->setInterval(SettingsManager::instance().getVisibilityDebounceMs());
-        ui->gridLayout->setHorizontalSpacing(SettingsManager::instance().getGridHorizontalSpacing());
-        ui->gridLayout->setVerticalSpacing(SettingsManager::instance().getGridVerticalSpacing());
+        ui->containerWidget->applySettings();
         if (!current_folder.isEmpty())
             loadGifsFromFolder(current_folder);
     });
