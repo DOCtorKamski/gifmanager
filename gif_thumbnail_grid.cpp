@@ -5,11 +5,16 @@
 
 GifThumbnailGrid::GifThumbnailGrid(QWidget *parent)
     : QWidget(parent)
+    , columns(SettingsManager::instance().getColumns())
+    , thumbnail_size(SettingsManager::instance().getThumbnailSize())
+    , h_spacing(SettingsManager::instance().getGridHorizontalSpacing())
+    , v_spacing(SettingsManager::instance().getGridVerticalSpacing())
+    , thumbnail_style(SettingsManager::instance().getThumbnailStyle())
 {
     grid_layout = new QGridLayout(this);
     grid_layout->setContentsMargins(0, 0, 0, 0);
-    grid_layout->setHorizontalSpacing(SettingsManager::instance().getGridHorizontalSpacing());
-    grid_layout->setVerticalSpacing(SettingsManager::instance().getGridVerticalSpacing());
+    grid_layout->setHorizontalSpacing(h_spacing);
+    grid_layout->setVerticalSpacing(v_spacing);
     setLayout(grid_layout);
 }
 
@@ -20,8 +25,14 @@ void GifThumbnailGrid::setScrollArea(QScrollArea *area)
 
 void GifThumbnailGrid::applySettings()
 {
-    grid_layout->setHorizontalSpacing(SettingsManager::instance().getGridHorizontalSpacing());
-    grid_layout->setVerticalSpacing(SettingsManager::instance().getGridVerticalSpacing());
+    columns = SettingsManager::instance().getColumns();
+    thumbnail_size = SettingsManager::instance().getThumbnailSize();
+    thumbnail_style = SettingsManager::instance().getThumbnailStyle();
+    h_spacing = SettingsManager::instance().getGridHorizontalSpacing();
+    v_spacing = SettingsManager::instance().getGridVerticalSpacing();
+
+    grid_layout->setHorizontalSpacing(h_spacing);
+    grid_layout->setVerticalSpacing(v_spacing);
 }
 
 // --- GifItem --------------------
@@ -104,14 +115,12 @@ void GifThumbnailGrid::GifItem::clearMovie()
 
 // --- Grid methods ------------------------
 
-void GifThumbnailGrid::addGif(const LoadedGifData &data)
+ClickableLabel *GifThumbnailGrid::createLabel(const LoadedGifData &data)
 {
-    QMutexLocker locker(&items_mutex);
-
     ClickableLabel *lbl = new ClickableLabel(this);
-    lbl->setFixedSize(SettingsManager::instance().getThumbnailSize());
+    lbl->setFixedSize(thumbnail_size);
     lbl->setAlignment(Qt::AlignCenter);
-    lbl->setStyleSheet(SettingsManager::instance().getThumbnailStyle());
+    lbl->setStyleSheet(thumbnail_style);
     lbl->setFilePath(data.file_path);
     lbl->setPixmap(data.thumbnail);
 
@@ -124,9 +133,15 @@ void GifThumbnailGrid::addGif(const LoadedGifData &data)
     connect(lbl, &ClickableLabel::renameRequested,
             this, &GifThumbnailGrid::renameRequested);
 
-    int columns = SettingsManager::instance().getColumns();
-    grid_layout->addWidget(lbl, items.size() / columns, items.size() % columns);
+    return lbl;
+}
 
+void GifThumbnailGrid::addGif(const LoadedGifData &data)
+{
+    QMutexLocker locker(&items_mutex);
+
+    ClickableLabel *lbl = createLabel(data);
+    grid_layout->addWidget(lbl, items.size() / columns, items.size() % columns);
     items.emplace_back(lbl);
     adjustSize();
 }
@@ -157,14 +172,13 @@ void GifThumbnailGrid::playVisibleAnimations()
 {
     QMutexLocker locker(&items_mutex);
 
-    QSize thumb_size = SettingsManager::instance().getThumbnailSize();
     for (auto &item : items) {
         if (!item.label)
             continue;
 
         if (isWidgetVisibleInViewport(item.label)) {
             if (!item.hasMovie())
-                item.createMovie(this, thumb_size);
+                item.createMovie(this, thumbnail_size);
             item.startMovie();
         } else {
             item.clearMovie();

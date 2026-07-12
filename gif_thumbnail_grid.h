@@ -51,12 +51,20 @@ private:
         QMovie *movie = nullptr;
     };
 
+    ClickableLabel *createLabel(const LoadedGifData &data);
     bool isWidgetVisibleInViewport(QWidget *w) const;
 
     std::vector<GifItem> items;
     QGridLayout *grid_layout;
     QScrollArea *scroll_area = nullptr;
     mutable QMutex items_mutex;
+
+    // cached settings — refreshed by applySettings()
+    int columns;
+    QSize thumbnail_size;
+    int h_spacing;
+    int v_spacing;
+    QString thumbnail_style;
 };
 
 #endif // GIFTHUMBNAILGRID_H
