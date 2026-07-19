@@ -1,15 +1,12 @@
 #include "gif_loader_worker.h"
-#include <QFileInfo>
 #include <QImageReader>
 #include <QDebug>
 
 GifLoaderWorker::GifLoaderWorker(const QStringList &files,
                                  const QSize &thumb_size,
-                                 const QString &search_query,
                                  quint64 load_id)
     : file_paths(files),
     thumbnail_size(thumb_size),
-    query(search_query.toLower()),
     load_id(load_id),
     should_stop(0)
 {
@@ -31,13 +28,6 @@ void GifLoaderWorker::process() {
             qDebug() << "Worker stopped at" << current << "/" << total << "load_id:" << load_id;
             emit finished(load_id);
             return;
-        }
-
-        QFileInfo fi(file_path);
-
-        if (!query.isEmpty() && !fi.fileName().toLower().contains(query)) {
-            current++;
-            continue;
         }
 
         QImageReader reader(file_path);

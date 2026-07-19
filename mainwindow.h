@@ -39,6 +39,7 @@ private:
     void onGifLoaded(quint64 load_id, const LoadedGifData &data);
     void onLoadingFinished(quint64 load_id);
     void safeStopLoading();
+    void scanToGif(const QString &path);
     void loadGifsFromFolder(const QString &folder_path);
     void copyGifUnderMouse();
     bool showDeleteConfirmationDialog(const QString &file_name);
