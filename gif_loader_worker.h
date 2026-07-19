@@ -16,7 +16,6 @@ class GifLoaderWorker : public QObject {
 public:
     explicit GifLoaderWorker(const QStringList &files,
                              const QSize &thumb_size,
-                             const QString &search_query = "",
                              quint64 load_id = 0);
 
     void requestStop();
@@ -32,7 +31,6 @@ signals:
 private:
     QStringList file_paths;
     QSize thumbnail_size;
-    QString query;
     quint64 load_id;
     QAtomicInt should_stop;
 };

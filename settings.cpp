@@ -119,5 +119,9 @@ void SettingsManager::setWindowGeometry(const QByteArray &geometry) {
 }
 
 void SettingsManager::resetToDefaults() {
+    QByteArray geom = settings.value(KEY_WINDOW_GEOMETRY).toByteArray();
     settings.clear();
+    if (!geom.isEmpty())
+        settings.setValue(KEY_WINDOW_GEOMETRY, geom);
+    settings.sync();
 }
