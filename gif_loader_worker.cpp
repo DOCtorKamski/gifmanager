@@ -32,7 +32,7 @@ void GifLoaderWorker::process() {
 
         QImageReader reader(file_path);
         reader.setScaledSize(thumbnail_size);
-
+        // double scale need here, if dont looks ugly
         QPixmap thumbnail;
         QImage img = reader.read();
         if (!img.isNull()) {
