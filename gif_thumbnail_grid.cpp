@@ -1,5 +1,6 @@
 #include "gif_thumbnail_grid.h"
 #include "settings.h"
+#include <QFileInfo>
 #include <QMovie>
 #include <QScrollBar>
 
@@ -156,6 +157,36 @@ void GifThumbnailGrid::clearGrid()
         delete child;
 }
 
+void GifThumbnailGrid::filterByQuery(const QString &query)
+{
+    QMutexLocker locker(&items_mutex);
+
+    while (grid_layout->count() > 0)
+        delete grid_layout->takeAt(0);
+
+    int col = 0;
+    int row = 0;
+    for (auto &item : items) {
+        if (!item.label)
+            continue;
+
+        bool matches = query.isEmpty()
+            || QFileInfo(item.label->filePath()).fileName().toLower().contains(query);
+
+        if (matches) {
+            grid_layout->addWidget(item.label, row, col);
+            item.label->setVisible(true);
+            if (++col >= columns) {
+                col = 0;
+                ++row;
+            }
+        } else {
+            item.label->setVisible(false);
+        }
+    }
+    adjustSize();
+}
+
 void GifThumbnailGrid::releaseItem(const QString &file_path)
 {
     QMutexLocker locker(&items_mutex);
@@ -188,7 +219,7 @@ void GifThumbnailGrid::playVisibleAnimations()
 
 bool GifThumbnailGrid::isWidgetVisibleInViewport(QWidget *w) const
 {
-    if (!w || !scroll_area)
+    if (!w || !w->isVisible() || !scroll_area)
         return false;
     QRect viewport_rect = scroll_area->viewport()->rect();
     QPoint w_top_left = w->mapTo(scroll_area->viewport(), QPoint(0, 0));

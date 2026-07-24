@@ -20,6 +20,7 @@ public:
     void addGif(const LoadedGifData &data);
     void clearGrid();
     void releaseItem(const QString &file_path);
+    void filterByQuery(const QString &query);
     void playVisibleAnimations();
     void setScrollArea(QScrollArea *area);
     void applySettings();

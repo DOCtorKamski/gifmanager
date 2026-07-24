@@ -3,7 +3,6 @@
 #include "gif_thumbnail_grid.h"
 #include "gif_viewer.h"
 #include "settings_dialog.h"
-#include <algorithm>
 
 #include <QApplication>
 #include <QClipboard>
@@ -46,7 +45,9 @@ MainWindow::MainWindow(QWidget *parent)
     search_timer->setInterval(SettingsManager::instance().getSearchDebounceMs());
     connect(search_timer, &QTimer::timeout, this, [this](){
         if (!is_loading && !current_folder.isEmpty()) {
-            loadGifsFromFolder(current_folder);
+            ui->containerWidget->filterByQuery(ui->searchEdit->text().trimmed());
+            ui->scrollArea->verticalScrollBar()->setValue(0);
+            visibility_timer->start();
         }
     });
 
@@ -146,21 +147,10 @@ void MainWindow::loadGifsFromFolder(const QString &path) {
     is_loading = true;
     current_load_id++;
 
-    QString query = ui->searchEdit ? ui->searchEdit->text().trimmed() : "";
-
     QStringList files_to_load;
     {
         QMutexLocker locker(&files_mutex);
         files_to_load = all_gif_files;
-    }
-    if (!query.isEmpty()) {
-        files_to_load.erase(
-            std::remove_if(files_to_load.begin(), files_to_load.end(),
-                [&query](const QString &path) {
-                    return !QFileInfo(path).fileName().toLower().contains(query);
-                }),
-            files_to_load.end()
-        );
     }
 
     loader_thread = new QThread(this);
@@ -218,6 +208,12 @@ void MainWindow::onLoadingFinished(quint64 load_id) {
 
     is_loading = false;
     ui->statusbar->showMessage("Ready");
+
+    QString query = ui->searchEdit ? ui->searchEdit->text().trimmed() : QString();
+    if (!query.isEmpty()) {
+        ui->containerWidget->filterByQuery(query);
+    }
+
     visibility_timer->start();
     qDebug() << "Loading finished";
 }
