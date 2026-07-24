@@ -89,7 +89,7 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 void MainWindow::chooseFolder() {
-    QString dir = QFileDialog::getExistingDirectory(this, tr("Select GIF Folder"));
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Select GIF Folder"), current_folder);
     if (!dir.isEmpty()) {
         scanToGif(dir);
     }
