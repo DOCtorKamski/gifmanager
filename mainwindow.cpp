@@ -243,11 +243,20 @@ void MainWindow::copyGifToClipboard(const QString &file_path) {
 }
 
 void MainWindow::openFullSizeGif(const QString &file_path) {
+    if (active_viewer) {
+        if (active_viewer->filePath() == file_path) {
+            active_viewer->close();
+            return;
+        }
+        active_viewer->close();
+    }
+
     GifViewer *viewer = new GifViewer(file_path, this);
     connect(viewer, &GifViewer::copyRequested, this, &MainWindow::copyGifToClipboard);
     connect(viewer, &GifViewer::deleteRequested, this, &MainWindow::deleteGif);
     connect(viewer, &GifViewer::renameRequested, this, &MainWindow::renameGif);
     viewer->show();
+    active_viewer = viewer;
 }
 
 void MainWindow::deleteGif(const QString &file_path) {

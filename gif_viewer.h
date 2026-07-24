@@ -11,6 +11,8 @@ public:
     explicit GifViewer(const QString &file_path, QWidget *parent = nullptr);
     ~GifViewer();
 
+    QString filePath() const { return file_path; }
+
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;

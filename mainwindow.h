@@ -4,8 +4,10 @@
 #include "clickable_label.h"
 #include "gif_loader_worker.h"
 #include "settings.h"
+#include "gif_viewer.h"
 #include <QCloseEvent>
 #include <QMainWindow>
+#include <QPointer>
 #include <QTimer>
 #include <QMutex>
 
@@ -47,6 +49,7 @@ private:
 
     QString current_folder;
     QStringList all_gif_files;
+    QPointer<GifViewer> active_viewer;
     QTimer *search_timer = nullptr;
     QTimer *visibility_timer = nullptr;
     QThread *loader_thread = nullptr;
