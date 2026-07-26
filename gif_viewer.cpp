@@ -64,21 +64,11 @@ void GifViewer::contextMenuEvent(QContextMenuEvent *event) {
         emit copyRequested(file_path);
     }
     else if (act == delete_act) {
-        if (movie) {
-            movie->stop();
-            delete movie;
-            movie = nullptr;
-        }
-        close();
         emit deleteRequested(file_path);
+        close();
     }
     else if (act == rename_act) {
-        if (movie) {
-            movie->stop();
-            delete movie;
-            movie = nullptr;
-        }
-        close();
         emit renameRequested(file_path);
+        close();
     }
 }

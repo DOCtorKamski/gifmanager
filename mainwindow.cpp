@@ -121,6 +121,7 @@ void MainWindow::safeStopLoading() {
     }
 
     if (loader_thread) {
+        loader_thread->quit();
         if (loader_thread->isRunning()) {
             if (!loader_thread->wait(5000)) {
                 qWarning() << "Loader thread did not stop within timeout";
@@ -130,6 +131,7 @@ void MainWindow::safeStopLoading() {
         loader_thread = nullptr;
     }
 
+    delete current_worker;
     current_worker = nullptr;
     is_loading = false;
 }
