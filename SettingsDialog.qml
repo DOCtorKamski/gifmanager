@@ -20,6 +20,7 @@ Dialog {
         widthSpin.value = appSettings.thumbnailWidth
         heightSpin.value = appSettings.thumbnailHeight
         columnsSpin.value = appSettings.columns
+        scrollSpeedSpin.value = appSettings.gridScrollSpeed
         defaultFolderField.text = appSettings.defaultFolder
 
         viewerWidthSpin.value = appSettings.viewerWidth
@@ -36,6 +37,7 @@ Dialog {
         widthSpin.value = defaults.thumbnailWidth
         heightSpin.value = defaults.thumbnailHeight
         columnsSpin.value = defaults.columns
+        scrollSpeedSpin.value = defaults.gridScrollSpeed
         defaultFolderField.text = defaults.defaultFolder
         searchDebounceSpin.value = defaults.searchDebounceMs
         visibilityDebounceSpin.value = defaults.visibilityDebounceMs
@@ -49,6 +51,7 @@ Dialog {
         appSettings.thumbnailWidth = widthSpin.value
         appSettings.thumbnailHeight = heightSpin.value
         appSettings.columns = columnsSpin.value
+        appSettings.gridScrollSpeed = scrollSpeedSpin.value
         appSettings.defaultFolder = defaultFolderField.text.trim()
         appSettings.searchDebounceMs = searchDebounceSpin.value
         appSettings.visibilityDebounceMs = visibilityDebounceSpin.value
@@ -100,6 +103,15 @@ Dialog {
                     id: columnsSpin
                     from: 1
                     to: 8
+                    editable: true
+                }
+
+                Label { text: qsTr("Scroll speed (px per wheel notch):") }
+                SpinBox {
+                    id: scrollSpeedSpin
+                    from: 24
+                    to: 264
+                    stepSize: 12
                     editable: true
                 }
 

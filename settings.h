@@ -41,6 +41,8 @@ class SettingsManager : public QObject
                WRITE setGridHorizontalSpacing NOTIFY gridHorizontalSpacingChanged)
     Q_PROPERTY(int gridVerticalSpacing READ getGridVerticalSpacing
                WRITE setGridVerticalSpacing NOTIFY gridVerticalSpacingChanged)
+    Q_PROPERTY(int gridScrollSpeed READ getGridScrollSpeed WRITE setGridScrollSpeed
+               NOTIFY gridScrollSpeedChanged)
     Q_PROPERTY(QRect windowGeometry READ windowGeometry WRITE setWindowGeometry
                NOTIFY windowGeometryChanged)
     Q_PROPERTY(bool hasWindowGeometry READ hasWindowGeometry NOTIFY windowGeometryChanged)
@@ -100,6 +102,9 @@ public:
     int getGridVerticalSpacing() const;
     void setGridVerticalSpacing(int spacing);
 
+    int getGridScrollSpeed() const;
+    void setGridScrollSpeed(int speed);
+
     QRect windowGeometry() const;
     void setWindowGeometry(const QRect &geometry);
     bool hasWindowGeometry() const;
@@ -120,6 +125,7 @@ signals:
     void viewerLabelStyleChanged();
     void gridHorizontalSpacingChanged();
     void gridVerticalSpacingChanged();
+    void gridScrollSpeedChanged();
     void windowGeometryChanged();
 
 private:
@@ -134,6 +140,7 @@ private:
     static constexpr QSize DEFAULT_VIEWER_SIZE = QSize(800, 600);
     static constexpr int DEFAULT_GRID_HSPACING = 6;
     static constexpr int DEFAULT_GRID_VSPACING = 4;
+    static constexpr int DEFAULT_GRID_SCROLL_SPEED = 72;
 
     static inline QString defaultThumbnailStyle() {
         return "background: #999; border: 1px solid #444;";
@@ -156,6 +163,7 @@ private:
     static constexpr const char* KEY_VIEWER_LABEL_STYLE = "viewer/labelStyle";
     static constexpr const char* KEY_GRID_HSPACING = "layout/gridHorizontalSpacing";
     static constexpr const char* KEY_GRID_VSPACING = "layout/gridVerticalSpacing";
+    static constexpr const char* KEY_GRID_SCROLL_SPEED = "layout/gridScrollSpeed";
     static constexpr const char* KEY_WINDOW_RECT = "window/rect";
 };
 

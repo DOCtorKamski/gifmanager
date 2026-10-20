@@ -120,6 +120,16 @@ void SettingsManager::setGridVerticalSpacing(int spacing) {
     emit gridVerticalSpacingChanged();
 }
 
+int SettingsManager::getGridScrollSpeed() const {
+    return settings.value(KEY_GRID_SCROLL_SPEED, DEFAULT_GRID_SCROLL_SPEED).toInt();
+}
+
+void SettingsManager::setGridScrollSpeed(int speed) {
+    settings.setValue(KEY_GRID_SCROLL_SPEED, speed);
+    settings.sync();
+    emit gridScrollSpeedChanged();
+}
+
 QRect SettingsManager::windowGeometry() const {
     return settings.value(KEY_WINDOW_RECT, QRect()).toRect();
 }
@@ -146,6 +156,7 @@ QVariantMap SettingsManager::defaultValues() const {
     values.insert(QStringLiteral("viewerHeight"), DEFAULT_VIEWER_SIZE.height());
     values.insert(QStringLiteral("gridHorizontalSpacing"), DEFAULT_GRID_HSPACING);
     values.insert(QStringLiteral("gridVerticalSpacing"), DEFAULT_GRID_VSPACING);
+    values.insert(QStringLiteral("gridScrollSpeed"), DEFAULT_GRID_SCROLL_SPEED);
     return values;
 }
 
@@ -169,6 +180,7 @@ void SettingsManager::resetToDefaults() {
     emit viewerLabelStyleChanged();
     emit gridHorizontalSpacingChanged();
     emit gridVerticalSpacingChanged();
+    emit gridScrollSpeedChanged();
     emit windowGeometryChanged();
 }
 
