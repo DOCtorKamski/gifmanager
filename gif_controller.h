@@ -64,12 +64,13 @@ signals:
     void removingPathChanged();
 
 private slots:
+    void onFilesDiscovered(quint64 load_id, const QStringList &file_paths);
     void onGifLoaded(quint64 load_id, const QString &path, const QImage &image);
     void onProgress(quint64 load_id, int current, int total);
     void onFinished(quint64 load_id);
 
 private:
-    void startLoading();
+    void startLoading(bool scan_folder);
     void stopLoading();
     void cleanupFinishedLoader();
     void reloadCurrentFolder();

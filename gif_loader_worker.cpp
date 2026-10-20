@@ -1,7 +1,12 @@
 #include "gif_loader_worker.h"
 
 #include <QDebug>
+#include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
 #include <QImageReader>
+
+#include <algorithm>
 
 GifLoaderWorker::GifLoaderWorker(const QStringList &files,
                                  const QSize &thumb_size,
@@ -13,18 +18,44 @@ GifLoaderWorker::GifLoaderWorker(const QStringList &files,
 {
 }
 
+GifLoaderWorker::GifLoaderWorker(const QString &folder_path,
+                                 const QSize &thumb_size,
+                                 quint64 load_id)
+    : thumbnail_size(thumb_size),
+      load_id(load_id),
+      should_stop(0),
+      scan_mode(true),
+      scan_folder(folder_path)
+{
+}
+
 void GifLoaderWorker::requestStop() {
     should_stop.storeRelease(1);
     qDebug() << "Stop requested for load_id:" << load_id;
 }
 
 void GifLoaderWorker::process() {
-    qDebug() << "Worker started, files count:" << file_paths.count() << "load_id:" << load_id;
+    QStringList files = file_paths;
 
-    int total = file_paths.count();
+    if (scan_mode) {
+        files = scanFolder();
+        if (should_stop.loadAcquire()) {
+            qDebug() << "Worker stopped while scanning, load_id:" << load_id;
+            emit finished(load_id);
+            return;
+        }
+
+        qDebug() << "Folder scanned, files count:" << files.count()
+                 << "load_id:" << load_id;
+        emit filesDiscovered(load_id, files);
+    }
+
+    qDebug() << "Worker started, files count:" << files.count() << "load_id:" << load_id;
+
+    int total = files.count();
     int current = 0;
 
-    for (const QString &file_path : file_paths) {
+    for (const QString &file_path : files) {
         if (should_stop.loadAcquire()) {
             qDebug() << "Worker stopped at" << current << "/" << total << "load_id:" << load_id;
             emit finished(load_id);
@@ -57,4 +88,25 @@ void GifLoaderWorker::process() {
     qDebug() << "Worker finished normally, processed:" << current << "/" << total
              << "load_id:" << load_id;
     emit finished(load_id);
+}
+
+QStringList GifLoaderWorker::scanFolder()
+{
+    QStringList files;
+
+    QDirIterator iterator(scan_folder, {"*.gif", "*.GIF"}, QDir::Files);
+    while (iterator.hasNext()) {
+        if (should_stop.loadAcquire())
+            return files;
+
+        iterator.next();
+        files.append(iterator.fileInfo().absoluteFilePath());
+    }
+
+    std::sort(files.begin(), files.end(),
+              [](const QString &lhs, const QString &rhs) {
+                  return QFileInfo(lhs).fileName() < QFileInfo(rhs).fileName();
+              });
+
+    return files;
 }

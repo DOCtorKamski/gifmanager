@@ -83,20 +83,13 @@ void GifController::loadFolder(const QString &path)
     current_folder = path;
     emit currentFolderChanged();
 
-    QDir directory(path);
-    directory.setNameFilters({"*.gif", "*.GIF"});
-    const QFileInfoList files = directory.entryInfoList(QDir::Files, QDir::Name);
-
     all_gif_files.clear();
-    all_gif_files.reserve(files.size());
-    for (const QFileInfo &file_info : files)
-        all_gif_files.append(file_info.absoluteFilePath());
 
     filter_query.clear();
     proxy_model->setFilterFixedString(QString());
     emit filterCleared();
 
-    startLoading();
+    startLoading(true);
 }
 
 void GifController::loadFolderUrl(const QUrl &url)
@@ -125,18 +118,18 @@ void GifController::setFilterQuery(const QString &query)
     proxy_model->setFilterFixedString(filter_query);
 }
 
-void GifController::startLoading()
+void GifController::startLoading(bool scan_folder)
 {
     if (is_loading)
         stopLoading();
 
-    gif_model->resetFiles(all_gif_files);
+    gif_model->resetFiles(scan_folder ? QStringList() : all_gif_files);
 
     ++current_load_id;
     const quint64 load_id = current_load_id;
 
     progress_current = 0;
-    progress_total = all_gif_files.size();
+    progress_total = scan_folder ? 0 : all_gif_files.size();
     emit progressChanged();
 
     is_loading = true;
@@ -145,13 +138,21 @@ void GifController::startLoading()
     loaded_thumbnail_size = SettingsManager::instance().getThumbnailSize();
 
     loader_thread = new QThread(this);
-    current_worker = new GifLoaderWorker(all_gif_files,
-                                         loaded_thumbnail_size,
-                                         load_id);
+    if (scan_folder) {
+        current_worker = new GifLoaderWorker(current_folder,
+                                             loaded_thumbnail_size,
+                                             load_id);
+    } else {
+        current_worker = new GifLoaderWorker(all_gif_files,
+                                             loaded_thumbnail_size,
+                                             load_id);
+    }
     current_worker->moveToThread(loader_thread);
 
     connect(loader_thread, &QThread::started,
             current_worker, &GifLoaderWorker::process);
+    connect(current_worker, &GifLoaderWorker::filesDiscovered,
+            this, &GifController::onFilesDiscovered, Qt::QueuedConnection);
     connect(current_worker, &GifLoaderWorker::gifLoaded,
             this, &GifController::onGifLoaded, Qt::QueuedConnection);
     connect(current_worker, &GifLoaderWorker::progress,
@@ -207,8 +208,24 @@ void GifController::reloadCurrentFolder()
     if (current_folder.isEmpty())
         return;
 
+    // If the previous load was still scanning, all_gif_files is empty.
+    // Rescan the folder instead of reloading an empty list.
+    const bool scan_folder = all_gif_files.isEmpty();
     stopLoading();
-    startLoading();
+    startLoading(scan_folder);
+}
+
+void GifController::onFilesDiscovered(quint64 load_id, const QStringList &file_paths)
+{
+    if (load_id != current_load_id || !is_loading)
+        return;
+
+    all_gif_files = file_paths;
+    gif_model->resetFiles(file_paths);
+
+    progress_current = 0;
+    progress_total = file_paths.size();
+    emit progressChanged();
 }
 
 void GifController::onGifLoaded(quint64 load_id, const QString &path, const QImage &image)
