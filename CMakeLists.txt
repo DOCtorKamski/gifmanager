@@ -1,24 +1,37 @@
 cmake_minimum_required(VERSION 3.19)
 project(gifmanager LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS
+    Core
+    Gui
+    Qml
+    Quick
+    QuickControls2
+    QuickDialogs2
+    QuickLayouts
+)
 
 qt_standard_project_setup()
 
 qt_add_executable(gifmanager
     WIN32 MACOSX_BUNDLE
     main.cpp
-    mainwindow.cpp
-    mainwindow.h
-    mainwindow.ui
 
-    clickable_label.h clickable_label.cpp
-    gif_thumbnail_grid.h gif_thumbnail_grid.cpp
-    gif_viewer.h
-    gif_viewer.cpp
+    gif_controller.h gif_controller.cpp
+    gif_model.h gif_model.cpp
     gif_loader_worker.h gif_loader_worker.cpp
+    thumbnail_provider.h thumbnail_provider.cpp
     settings.h settings.cpp
-    settings_dialog.h settings_dialog.cpp
+)
+
+qt_add_qml_module(gifmanager
+    URI gifmanager
+    VERSION 1.0
+    QML_FILES
+        Main.qml
+        GifDelegate.qml
+        GifViewerWindow.qml
+        SettingsDialog.qml
 )
 
 target_include_directories(gifmanager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -26,7 +39,12 @@ target_include_directories(gifmanager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gifmanager
     PRIVATE
         Qt::Core
-        Qt::Widgets
+        Qt::Gui
+        Qt::Qml
+        Qt::Quick
+        Qt::QuickControls2
+        Qt::QuickDialogs2
+        Qt::QuickLayouts
 )
 
 include(GNUInstallDirs)

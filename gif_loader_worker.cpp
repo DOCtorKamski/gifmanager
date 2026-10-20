@@ -1,14 +1,15 @@
 #include "gif_loader_worker.h"
-#include <QImageReader>
+
 #include <QDebug>
+#include <QImageReader>
 
 GifLoaderWorker::GifLoaderWorker(const QStringList &files,
                                  const QSize &thumb_size,
                                  quint64 load_id)
     : file_paths(files),
-    thumbnail_size(thumb_size),
-    load_id(load_id),
-    should_stop(0)
+      thumbnail_size(thumb_size),
+      load_id(load_id),
+      should_stop(0)
 {
 }
 
@@ -32,26 +33,20 @@ void GifLoaderWorker::process() {
 
         QImageReader reader(file_path);
         reader.setScaledSize(thumbnail_size);
-        // double scale need here, if dont looks ugly
-        QPixmap thumbnail;
-        QImage img = reader.read();
-        if (!img.isNull()) {
-            thumbnail = QPixmap::fromImage(
-                img.scaled(thumbnail_size, Qt::KeepAspectRatio,
-                           Qt::SmoothTransformation)
-                );
+
+        QImage image = reader.read();
+        QImage thumbnail;
+        if (!image.isNull()) {
+            thumbnail = image.scaled(thumbnail_size, Qt::KeepAspectRatio,
+                                     Qt::SmoothTransformation);
         } else {
-            thumbnail = QPixmap(thumbnail_size);
+            thumbnail = QImage(thumbnail_size, QImage::Format_RGB32);
             thumbnail.fill(Qt::gray);
         }
 
-        LoadedGifData data;
-        data.file_path = file_path;
-        data.thumbnail = thumbnail;
-
         if (!should_stop.loadAcquire()) {
-            emit gifLoaded(load_id, data);
-            emit progress(++current, total);
+            emit gifLoaded(load_id, file_path, thumbnail);
+            emit progress(load_id, ++current, total);
         } else {
             qDebug() << "Stopped before emit at" << current << "load_id:" << load_id;
             emit finished(load_id);
@@ -59,6 +54,7 @@ void GifLoaderWorker::process() {
         }
     }
 
-    qDebug() << "Worker finished normally, processed:" << current << "/" << total << "load_id:" << load_id;
+    qDebug() << "Worker finished normally, processed:" << current << "/" << total
+             << "load_id:" << load_id;
     emit finished(load_id);
 }

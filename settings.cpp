@@ -17,6 +17,7 @@ QSize SettingsManager::getThumbnailSize() const {
 void SettingsManager::setThumbnailSize(const QSize &size) {
     settings.setValue(KEY_THUMB_SIZE, size);
     settings.sync();
+    emit thumbnailSizeChanged();
 }
 
 int SettingsManager::getColumns() const {
@@ -26,6 +27,7 @@ int SettingsManager::getColumns() const {
 void SettingsManager::setColumns(int columns) {
     settings.setValue(KEY_COLUMNS, columns);
     settings.sync();
+    emit columnsChanged();
 }
 
 QString SettingsManager::getThumbnailStyle() const {
@@ -35,6 +37,7 @@ QString SettingsManager::getThumbnailStyle() const {
 void SettingsManager::setThumbnailStyle(const QString &style) {
     settings.setValue(KEY_THUMB_STYLE, style);
     settings.sync();
+    emit thumbnailStyleChanged();
 }
 
 QString SettingsManager::getDefaultFolder() const {
@@ -44,6 +47,7 @@ QString SettingsManager::getDefaultFolder() const {
 void SettingsManager::setDefaultFolder(const QString &path) {
     settings.setValue(KEY_DEFAULT_FOLDER, path);
     settings.sync();
+    emit defaultFolderChanged();
 }
 
 int SettingsManager::getSearchDebounceMs() const {
@@ -53,6 +57,7 @@ int SettingsManager::getSearchDebounceMs() const {
 void SettingsManager::setSearchDebounceMs(int ms) {
     settings.setValue(KEY_SEARCH_DEBOUNCE, ms);
     settings.sync();
+    emit searchDebounceMsChanged();
 }
 
 int SettingsManager::getVisibilityDebounceMs() const {
@@ -62,6 +67,7 @@ int SettingsManager::getVisibilityDebounceMs() const {
 void SettingsManager::setVisibilityDebounceMs(int ms) {
     settings.setValue(KEY_VISIBILITY_DEBOUNCE, ms);
     settings.sync();
+    emit visibilityDebounceMsChanged();
 }
 
 QSize SettingsManager::getViewerSize() const {
@@ -71,6 +77,7 @@ QSize SettingsManager::getViewerSize() const {
 void SettingsManager::setViewerSize(const QSize &size) {
     settings.setValue(KEY_VIEWER_SIZE, size);
     settings.sync();
+    emit viewerSizeChanged();
 }
 
 QString SettingsManager::getViewerBgStyle() const {
@@ -80,6 +87,7 @@ QString SettingsManager::getViewerBgStyle() const {
 void SettingsManager::setViewerBgStyle(const QString &style) {
     settings.setValue(KEY_VIEWER_BG_STYLE, style);
     settings.sync();
+    emit viewerBgStyleChanged();
 }
 
 QString SettingsManager::getViewerLabelStyle() const {
@@ -89,6 +97,7 @@ QString SettingsManager::getViewerLabelStyle() const {
 void SettingsManager::setViewerLabelStyle(const QString &style) {
     settings.setValue(KEY_VIEWER_LABEL_STYLE, style);
     settings.sync();
+    emit viewerLabelStyleChanged();
 }
 
 int SettingsManager::getGridHorizontalSpacing() const {
@@ -98,6 +107,7 @@ int SettingsManager::getGridHorizontalSpacing() const {
 void SettingsManager::setGridHorizontalSpacing(int spacing) {
     settings.setValue(KEY_GRID_HSPACING, spacing);
     settings.sync();
+    emit gridHorizontalSpacingChanged();
 }
 
 int SettingsManager::getGridVerticalSpacing() const {
@@ -107,21 +117,61 @@ int SettingsManager::getGridVerticalSpacing() const {
 void SettingsManager::setGridVerticalSpacing(int spacing) {
     settings.setValue(KEY_GRID_VSPACING, spacing);
     settings.sync();
+    emit gridVerticalSpacingChanged();
 }
 
-QByteArray SettingsManager::getWindowGeometry() const {
-    return settings.value(KEY_WINDOW_GEOMETRY).toByteArray();
+QRect SettingsManager::windowGeometry() const {
+    return settings.value(KEY_WINDOW_RECT, QRect()).toRect();
 }
 
-void SettingsManager::setWindowGeometry(const QByteArray &geometry) {
-    settings.setValue(KEY_WINDOW_GEOMETRY, geometry);
+void SettingsManager::setWindowGeometry(const QRect &geometry) {
+    settings.setValue(KEY_WINDOW_RECT, geometry);
     settings.sync();
+    emit windowGeometryChanged();
+}
+
+bool SettingsManager::hasWindowGeometry() const {
+    return settings.contains(KEY_WINDOW_RECT);
+}
+
+QVariantMap SettingsManager::defaultValues() const {
+    QVariantMap values;
+    values.insert(QStringLiteral("thumbnailWidth"), DEFAULT_THUMB_SIZE.width());
+    values.insert(QStringLiteral("thumbnailHeight"), DEFAULT_THUMB_SIZE.height());
+    values.insert(QStringLiteral("columns"), DEFAULT_COLUMNS);
+    values.insert(QStringLiteral("defaultFolder"), QString());
+    values.insert(QStringLiteral("searchDebounceMs"), DEFAULT_SEARCH_DEBOUNCE);
+    values.insert(QStringLiteral("visibilityDebounceMs"), DEFAULT_VISIBILITY_DEBOUNCE);
+    values.insert(QStringLiteral("viewerWidth"), DEFAULT_VIEWER_SIZE.width());
+    values.insert(QStringLiteral("viewerHeight"), DEFAULT_VIEWER_SIZE.height());
+    values.insert(QStringLiteral("gridHorizontalSpacing"), DEFAULT_GRID_HSPACING);
+    values.insert(QStringLiteral("gridVerticalSpacing"), DEFAULT_GRID_VSPACING);
+    return values;
 }
 
 void SettingsManager::resetToDefaults() {
-    QByteArray geom = settings.value(KEY_WINDOW_GEOMETRY).toByteArray();
+    const bool had_window_geometry = hasWindowGeometry();
+    const QRect saved_geometry = windowGeometry();
+
     settings.clear();
-    if (!geom.isEmpty())
-        settings.setValue(KEY_WINDOW_GEOMETRY, geom);
+    if (had_window_geometry)
+        settings.setValue(KEY_WINDOW_RECT, saved_geometry);
     settings.sync();
+
+    emit thumbnailSizeChanged();
+    emit columnsChanged();
+    emit thumbnailStyleChanged();
+    emit defaultFolderChanged();
+    emit searchDebounceMsChanged();
+    emit visibilityDebounceMsChanged();
+    emit viewerSizeChanged();
+    emit viewerBgStyleChanged();
+    emit viewerLabelStyleChanged();
+    emit gridHorizontalSpacingChanged();
+    emit gridVerticalSpacingChanged();
+    emit windowGeometryChanged();
+}
+
+void SettingsManager::saveWindowGeometry(int x, int y, int width, int height) {
+    setWindowGeometry(QRect(x, y, width, height));
 }

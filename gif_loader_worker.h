@@ -1,17 +1,15 @@
 #ifndef GIF_LOADER_WORKER_H
 #define GIF_LOADER_WORKER_H
 
-#include <QObject>
-#include <QPixmap>
-#include <QThread>
 #include <QAtomicInt>
+#include <QImage>
+#include <QObject>
+#include <QSize>
+#include <QStringList>
+#include <QThread>
 
-struct LoadedGifData {
-    QString file_path;
-    QPixmap thumbnail;
-};
-
-class GifLoaderWorker : public QObject {
+class GifLoaderWorker : public QObject
+{
     Q_OBJECT
 public:
     explicit GifLoaderWorker(const QStringList &files,
@@ -24,9 +22,9 @@ public slots:
     void process();
 
 signals:
-    void gifLoaded(quint64 load_id, const LoadedGifData &data);
+    void gifLoaded(quint64 load_id, const QString &file_path, const QImage &thumbnail);
     void finished(quint64 load_id);
-    void progress(int current, int total);
+    void progress(quint64 load_id, int current, int total);
 
 private:
     QStringList file_paths;
