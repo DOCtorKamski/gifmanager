@@ -35,10 +35,10 @@ public:
 private:
     struct Item {
         QString path;
-        QString fileName;
-        QString imageId;
+        QString file_name;
+        QString image_id;
         quint64 revision = 0;
-        bool thumbnailReady = false;
+        bool thumbnail_ready = false;
     };
 
     QString makeImageId(const Item &item) const;
