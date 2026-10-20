@@ -142,9 +142,11 @@ void GifController::startLoading()
     is_loading = true;
     emit loadingChanged();
 
+    loaded_thumbnail_size = SettingsManager::instance().getThumbnailSize();
+
     loader_thread = new QThread(this);
     current_worker = new GifLoaderWorker(all_gif_files,
-                                         SettingsManager::instance().getThumbnailSize(),
+                                         loaded_thumbnail_size,
                                          load_id);
     current_worker->moveToThread(loader_thread);
 
@@ -334,7 +336,9 @@ QString GifController::renameFile(const QString &path, const QString &new_base_n
 
 void GifController::applySettings()
 {
-    reloadCurrentFolder();
+    const QSize thumbnail_size = SettingsManager::instance().getThumbnailSize();
+    if (thumbnail_size != loaded_thumbnail_size)
+        reloadCurrentFolder();
 }
 
 void GifController::shutdown()

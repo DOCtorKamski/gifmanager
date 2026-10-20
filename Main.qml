@@ -218,6 +218,11 @@ ApplicationWindow {
         renameDialog.open()
     }
 
+    function showError(message) {
+        errorDialog.message = message
+        errorDialog.open()
+    }
+
     Connections {
         target: gifController
 
@@ -228,8 +233,7 @@ ApplicationWindow {
         }
 
         function onOperationError(message) {
-            errorDialog.message = message
-            errorDialog.open()
+            root.showError(message)
         }
 
         function onFileAboutToBeRemoved(path) {
@@ -265,122 +269,31 @@ ApplicationWindow {
         onRenameRequested: root.requestRename(root.viewerPath)
     }
 
-    Dialog {
+    ConfirmDeleteDialog {
         id: deleteDialog
-        title: qsTr("Confirm Deletion")
-        modal: true
-        width: 420
-        anchors.centerIn: parent
+        fileName: gifController.displayName(root.pendingDeletePath)
 
-        contentItem: Label {
-            text: qsTr("Are you sure you want to delete '%1'?")
-                  .arg(gifController.displayName(root.pendingDeletePath))
-            wrapMode: Text.WordWrap
-            width: deleteDialog.width - 48
-        }
-
-        footer: RowLayout {
-            spacing: 8
-            Item { Layout.fillWidth: true }
-            Button {
-                text: qsTr("No")
-                onClicked: deleteDialog.close()
-            }
-            Button {
-                text: qsTr("Yes")
-                onClicked: {
-                    const error = gifController.deleteFile(root.pendingDeletePath)
-                    deleteDialog.close()
-                    if (error.length > 0) {
-                        errorDialog.message = error
-                        errorDialog.open()
-                    }
-                }
-            }
-        }
-    }
-
-    Dialog {
-        id: renameDialog
-        title: qsTr("Rename GIF")
-        modal: true
-        width: 420
-        anchors.centerIn: parent
-
-        property string errorText: ""
-
-        onOpened: {
-            renameField.text = gifController.baseNameForPath(root.pendingRenamePath)
-            renameField.selectAll()
-            renameField.forceActiveFocus()
-            errorText = ""
-        }
-
-        function submitRename() {
-            const error = gifController.renameFile(root.pendingRenamePath,
-                                                   renameField.text)
+        onDeleteConfirmed: {
+            const error = gifController.deleteFile(root.pendingDeletePath)
             if (error.length > 0)
-                errorText = error
-            else
-                close()
-        }
-
-        contentItem: ColumnLayout {
-            spacing: 8
-            Label {
-                text: qsTr("Enter new name (without extension):")
-                wrapMode: Text.WordWrap
-                Layout.fillWidth: true
-            }
-            TextField {
-                id: renameField
-                Layout.fillWidth: true
-                onAccepted: renameDialog.submitRename()
-            }
-            Label {
-                text: renameDialog.errorText
-                color: "#b00020"
-                visible: text.length > 0
-                wrapMode: Text.WordWrap
-                Layout.fillWidth: true
-            }
-        }
-
-        footer: RowLayout {
-            spacing: 8
-            Item { Layout.fillWidth: true }
-            Button {
-                text: qsTr("Cancel")
-                onClicked: renameDialog.close()
-            }
-            Button {
-                text: qsTr("OK")
-                onClicked: renameDialog.submitRename()
-            }
+                root.showError(error)
         }
     }
 
-    Dialog {
+    RenameGifDialog {
+        id: renameDialog
+        currentName: gifController.baseNameForPath(root.pendingRenamePath)
+
+        onRenameSubmitted: function(new_name) {
+            const error = gifController.renameFile(root.pendingRenamePath, new_name)
+            if (error.length > 0)
+                renameDialog.errorText = error
+            else
+                renameDialog.close()
+        }
+    }
+
+    ErrorDialog {
         id: errorDialog
-        title: qsTr("Error")
-        modal: true
-        width: 420
-        anchors.centerIn: parent
-        property string message: ""
-
-        contentItem: Label {
-            text: errorDialog.message
-            wrapMode: Text.WordWrap
-            width: errorDialog.width - 48
-        }
-
-        footer: RowLayout {
-            spacing: 8
-            Item { Layout.fillWidth: true }
-            Button {
-                text: qsTr("OK")
-                onClicked: errorDialog.close()
-            }
-        }
     }
 }

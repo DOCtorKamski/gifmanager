@@ -48,6 +48,7 @@ Dialog {
     }
 
     function applyValues() {
+        appSettings.beginUpdate()
         appSettings.thumbnailWidth = widthSpin.value
         appSettings.thumbnailHeight = heightSpin.value
         appSettings.columns = columnsSpin.value
@@ -59,6 +60,7 @@ Dialog {
         appSettings.viewerHeight = viewerHeightSpin.value
         appSettings.gridHorizontalSpacing = gridHSpacingSpin.value
         appSettings.gridVerticalSpacing = gridVSpacingSpin.value
+        appSettings.endUpdate()
         root.settingsApplied()
     }
 

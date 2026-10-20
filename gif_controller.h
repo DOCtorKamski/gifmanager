@@ -4,6 +4,7 @@
 #include <QAbstractItemModel>
 #include <QImage>
 #include <QObject>
+#include <QSize>
 #include <QStringList>
 #include <QUrl>
 
@@ -89,6 +90,7 @@ private:
     quint64 current_load_id = 0;
     int progress_current = 0;
     int progress_total = 0;
+    QSize loaded_thumbnail_size;
 };
 
 #endif // GIF_CONTROLLER_H

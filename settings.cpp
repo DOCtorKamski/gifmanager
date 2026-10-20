@@ -1,7 +1,7 @@
 #include "settings.h"
 
 SettingsManager::SettingsManager()
-    : settings("softBy_DOCtorKamski", "gifmanager")
+    : settings(AppIdentity::ORGANIZATION, AppIdentity::APPLICATION)
 {
 }
 
@@ -10,14 +10,48 @@ SettingsManager& SettingsManager::instance() {
     return inst;
 }
 
+const QList<SettingsManager::SettingDef> &SettingsManager::settingDefs()
+{
+    // Single source of truth for persisted settings: storage key, QML name,
+    // default value, and the notification emitted when defaults are restored.
+    static const QList<SettingDef> defs = {
+        {KEY_THUMB_SIZE, "thumbnailSize", DEFAULT_THUMB_SIZE,
+         &SettingsManager::thumbnailSizeChanged},
+        {KEY_COLUMNS, "columns", DEFAULT_COLUMNS,
+         &SettingsManager::columnsChanged},
+        {KEY_DEFAULT_FOLDER, "defaultFolder", QString(),
+         &SettingsManager::defaultFolderChanged},
+        {KEY_SEARCH_DEBOUNCE, "searchDebounceMs", DEFAULT_SEARCH_DEBOUNCE,
+         &SettingsManager::searchDebounceMsChanged},
+        {KEY_VISIBILITY_DEBOUNCE, "visibilityDebounceMs", DEFAULT_VISIBILITY_DEBOUNCE,
+         &SettingsManager::visibilityDebounceMsChanged},
+        {KEY_VIEWER_SIZE, "viewerSize", DEFAULT_VIEWER_SIZE,
+         &SettingsManager::viewerSizeChanged},
+        {KEY_GRID_HSPACING, "gridHorizontalSpacing", DEFAULT_GRID_HSPACING,
+         &SettingsManager::gridHorizontalSpacingChanged},
+        {KEY_GRID_VSPACING, "gridVerticalSpacing", DEFAULT_GRID_VSPACING,
+         &SettingsManager::gridVerticalSpacingChanged},
+        {KEY_GRID_SCROLL_SPEED, "gridScrollSpeed", DEFAULT_GRID_SCROLL_SPEED,
+         &SettingsManager::gridScrollSpeedChanged},
+    };
+    return defs;
+}
+
+void SettingsManager::writeSetting(const char *key, const QVariant &value,
+                                   void (SettingsManager::*notify)())
+{
+    settings.setValue(key, value);
+    if (update_depth == 0)
+        settings.sync();
+    (this->*notify)();
+}
+
 QSize SettingsManager::getThumbnailSize() const {
     return settings.value(KEY_THUMB_SIZE, DEFAULT_THUMB_SIZE).toSize();
 }
 
 void SettingsManager::setThumbnailSize(const QSize &size) {
-    settings.setValue(KEY_THUMB_SIZE, size);
-    settings.sync();
-    emit thumbnailSizeChanged();
+    writeSetting(KEY_THUMB_SIZE, size, &SettingsManager::thumbnailSizeChanged);
 }
 
 int SettingsManager::getColumns() const {
@@ -25,19 +59,7 @@ int SettingsManager::getColumns() const {
 }
 
 void SettingsManager::setColumns(int columns) {
-    settings.setValue(KEY_COLUMNS, columns);
-    settings.sync();
-    emit columnsChanged();
-}
-
-QString SettingsManager::getThumbnailStyle() const {
-    return settings.value(KEY_THUMB_STYLE, defaultThumbnailStyle()).toString();
-}
-
-void SettingsManager::setThumbnailStyle(const QString &style) {
-    settings.setValue(KEY_THUMB_STYLE, style);
-    settings.sync();
-    emit thumbnailStyleChanged();
+    writeSetting(KEY_COLUMNS, columns, &SettingsManager::columnsChanged);
 }
 
 QString SettingsManager::getDefaultFolder() const {
@@ -45,9 +67,7 @@ QString SettingsManager::getDefaultFolder() const {
 }
 
 void SettingsManager::setDefaultFolder(const QString &path) {
-    settings.setValue(KEY_DEFAULT_FOLDER, path);
-    settings.sync();
-    emit defaultFolderChanged();
+    writeSetting(KEY_DEFAULT_FOLDER, path, &SettingsManager::defaultFolderChanged);
 }
 
 int SettingsManager::getSearchDebounceMs() const {
@@ -55,9 +75,7 @@ int SettingsManager::getSearchDebounceMs() const {
 }
 
 void SettingsManager::setSearchDebounceMs(int ms) {
-    settings.setValue(KEY_SEARCH_DEBOUNCE, ms);
-    settings.sync();
-    emit searchDebounceMsChanged();
+    writeSetting(KEY_SEARCH_DEBOUNCE, ms, &SettingsManager::searchDebounceMsChanged);
 }
 
 int SettingsManager::getVisibilityDebounceMs() const {
@@ -65,9 +83,8 @@ int SettingsManager::getVisibilityDebounceMs() const {
 }
 
 void SettingsManager::setVisibilityDebounceMs(int ms) {
-    settings.setValue(KEY_VISIBILITY_DEBOUNCE, ms);
-    settings.sync();
-    emit visibilityDebounceMsChanged();
+    writeSetting(KEY_VISIBILITY_DEBOUNCE, ms,
+                 &SettingsManager::visibilityDebounceMsChanged);
 }
 
 QSize SettingsManager::getViewerSize() const {
@@ -75,29 +92,7 @@ QSize SettingsManager::getViewerSize() const {
 }
 
 void SettingsManager::setViewerSize(const QSize &size) {
-    settings.setValue(KEY_VIEWER_SIZE, size);
-    settings.sync();
-    emit viewerSizeChanged();
-}
-
-QString SettingsManager::getViewerBgStyle() const {
-    return settings.value(KEY_VIEWER_BG_STYLE, defaultViewerBgStyle()).toString();
-}
-
-void SettingsManager::setViewerBgStyle(const QString &style) {
-    settings.setValue(KEY_VIEWER_BG_STYLE, style);
-    settings.sync();
-    emit viewerBgStyleChanged();
-}
-
-QString SettingsManager::getViewerLabelStyle() const {
-    return settings.value(KEY_VIEWER_LABEL_STYLE, defaultViewerLabelStyle()).toString();
-}
-
-void SettingsManager::setViewerLabelStyle(const QString &style) {
-    settings.setValue(KEY_VIEWER_LABEL_STYLE, style);
-    settings.sync();
-    emit viewerLabelStyleChanged();
+    writeSetting(KEY_VIEWER_SIZE, size, &SettingsManager::viewerSizeChanged);
 }
 
 int SettingsManager::getGridHorizontalSpacing() const {
@@ -105,9 +100,8 @@ int SettingsManager::getGridHorizontalSpacing() const {
 }
 
 void SettingsManager::setGridHorizontalSpacing(int spacing) {
-    settings.setValue(KEY_GRID_HSPACING, spacing);
-    settings.sync();
-    emit gridHorizontalSpacingChanged();
+    writeSetting(KEY_GRID_HSPACING, spacing,
+                 &SettingsManager::gridHorizontalSpacingChanged);
 }
 
 int SettingsManager::getGridVerticalSpacing() const {
@@ -115,9 +109,8 @@ int SettingsManager::getGridVerticalSpacing() const {
 }
 
 void SettingsManager::setGridVerticalSpacing(int spacing) {
-    settings.setValue(KEY_GRID_VSPACING, spacing);
-    settings.sync();
-    emit gridVerticalSpacingChanged();
+    writeSetting(KEY_GRID_VSPACING, spacing,
+                 &SettingsManager::gridVerticalSpacingChanged);
 }
 
 int SettingsManager::getGridScrollSpeed() const {
@@ -125,9 +118,8 @@ int SettingsManager::getGridScrollSpeed() const {
 }
 
 void SettingsManager::setGridScrollSpeed(int speed) {
-    settings.setValue(KEY_GRID_SCROLL_SPEED, speed);
-    settings.sync();
-    emit gridScrollSpeedChanged();
+    writeSetting(KEY_GRID_SCROLL_SPEED, speed,
+                 &SettingsManager::gridScrollSpeedChanged);
 }
 
 QRect SettingsManager::windowGeometry() const {
@@ -135,9 +127,8 @@ QRect SettingsManager::windowGeometry() const {
 }
 
 void SettingsManager::setWindowGeometry(const QRect &geometry) {
-    settings.setValue(KEY_WINDOW_RECT, geometry);
-    settings.sync();
-    emit windowGeometryChanged();
+    writeSetting(KEY_WINDOW_RECT, geometry,
+                 &SettingsManager::windowGeometryChanged);
 }
 
 bool SettingsManager::hasWindowGeometry() const {
@@ -148,15 +139,12 @@ QVariantMap SettingsManager::defaultValues() const {
     QVariantMap values;
     values.insert(QStringLiteral("thumbnailWidth"), DEFAULT_THUMB_SIZE.width());
     values.insert(QStringLiteral("thumbnailHeight"), DEFAULT_THUMB_SIZE.height());
-    values.insert(QStringLiteral("columns"), DEFAULT_COLUMNS);
-    values.insert(QStringLiteral("defaultFolder"), QString());
-    values.insert(QStringLiteral("searchDebounceMs"), DEFAULT_SEARCH_DEBOUNCE);
-    values.insert(QStringLiteral("visibilityDebounceMs"), DEFAULT_VISIBILITY_DEBOUNCE);
     values.insert(QStringLiteral("viewerWidth"), DEFAULT_VIEWER_SIZE.width());
     values.insert(QStringLiteral("viewerHeight"), DEFAULT_VIEWER_SIZE.height());
-    values.insert(QStringLiteral("gridHorizontalSpacing"), DEFAULT_GRID_HSPACING);
-    values.insert(QStringLiteral("gridVerticalSpacing"), DEFAULT_GRID_VSPACING);
-    values.insert(QStringLiteral("gridScrollSpeed"), DEFAULT_GRID_SCROLL_SPEED);
+
+    for (const SettingDef &def : settingDefs())
+        values.insert(QString::fromLatin1(def.qml_name), def.default_value);
+
     return values;
 }
 
@@ -169,21 +157,20 @@ void SettingsManager::resetToDefaults() {
         settings.setValue(KEY_WINDOW_RECT, saved_geometry);
     settings.sync();
 
-    emit thumbnailSizeChanged();
-    emit columnsChanged();
-    emit thumbnailStyleChanged();
-    emit defaultFolderChanged();
-    emit searchDebounceMsChanged();
-    emit visibilityDebounceMsChanged();
-    emit viewerSizeChanged();
-    emit viewerBgStyleChanged();
-    emit viewerLabelStyleChanged();
-    emit gridHorizontalSpacingChanged();
-    emit gridVerticalSpacingChanged();
-    emit gridScrollSpeedChanged();
+    for (const SettingDef &def : settingDefs())
+        (this->*def.notify)();
     emit windowGeometryChanged();
 }
 
 void SettingsManager::saveWindowGeometry(int x, int y, int width, int height) {
     setWindowGeometry(QRect(x, y, width, height));
+}
+
+void SettingsManager::beginUpdate() {
+    ++update_depth;
+}
+
+void SettingsManager::endUpdate() {
+    if (update_depth > 0 && --update_depth == 0)
+        settings.sync();
 }
