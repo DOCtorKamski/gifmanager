@@ -82,6 +82,23 @@ ApplicationWindow {
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { }
 
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            blocking: true
+
+            onWheel: function(event) {
+                const pixels_per_notch = appSettings.gridScrollSpeed
+                const delta = event.pixelDelta.y !== 0
+                      ? event.pixelDelta.y * pixels_per_notch / 72
+                      : event.angleDelta.y / 120 * pixels_per_notch
+                if (delta === 0)
+                    return
+
+                const max_y = Math.max(0, grid.contentHeight - grid.height)
+                grid.contentY = Math.max(0, Math.min(max_y, grid.contentY - delta))
+            }
+        }
+
         property real viewTop: contentY
         property real viewBottom: contentY + height
 
