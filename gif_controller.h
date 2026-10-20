@@ -42,7 +42,7 @@ public:
     Q_INVOKABLE void setFilterQuery(const QString &query);
     Q_INVOKABLE void copyToClipboard(const QString &path);
     Q_INVOKABLE QString deleteFile(const QString &path);
-    Q_INVOKABLE QString renameFile(const QString &path, const QString &newBaseName);
+    Q_INVOKABLE QString renameFile(const QString &path, const QString &new_base_name);
     Q_INVOKABLE void applySettings();
     Q_INVOKABLE void shutdown();
 
@@ -59,7 +59,7 @@ signals:
     void operationError(const QString &message);
     void fileAboutToBeRemoved(const QString &path);
     void fileRemoved(const QString &path);
-    void fileRenamed(const QString &oldPath, const QString &newPath);
+    void fileRenamed(const QString &old_path, const QString &new_path);
     void removingPathChanged();
 
 private slots:

@@ -8,7 +8,7 @@ ThumbnailProvider::ThumbnailProvider()
 }
 
 QImage ThumbnailProvider::requestImage(const QString &id, QSize *size,
-                                       const QSize &requestedSize)
+                                       const QSize &requested_size)
 {
     QImage image;
     {
@@ -22,8 +22,8 @@ QImage ThumbnailProvider::requestImage(const QString &id, QSize *size,
         return image;
     }
 
-    if (requestedSize.isValid() && requestedSize != image.size())
-        image = image.scaled(requestedSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    if (requested_size.isValid() && requested_size != image.size())
+        image = image.scaled(requested_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
     if (size)
         *size = image.size();

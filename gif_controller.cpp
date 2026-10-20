@@ -288,14 +288,14 @@ QString GifController::deleteFile(const QString &path)
     return {};
 }
 
-QString GifController::renameFile(const QString &path, const QString &newBaseName)
+QString GifController::renameFile(const QString &path, const QString &new_base_name)
 {
     const QFileInfo file_info(path);
     if (!file_info.exists())
         return tr("File does not exist.");
 
     const QString old_name = file_info.baseName();
-    const QString trimmed_name = newBaseName.trimmed();
+    const QString trimmed_name = new_base_name.trimmed();
 
     if (trimmed_name.isEmpty())
         return tr("Name cannot be empty.");

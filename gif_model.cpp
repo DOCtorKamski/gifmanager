@@ -28,15 +28,15 @@ QVariant GifModel::data(const QModelIndex &index, int role) const
     case FilePathRole:
         return item.path;
     case FileNameRole:
-        return item.fileName;
+        return item.file_name;
     case FileUrlRole:
         return QUrl::fromLocalFile(item.path);
     case ThumbnailUrlRole:
-        if (!item.thumbnailReady || item.imageId.isEmpty())
+        if (!item.thumbnail_ready || item.image_id.isEmpty())
             return QUrl();
-        return QUrl(QStringLiteral("image://gifthumb/") + item.imageId);
+        return QUrl(QStringLiteral("image://gifthumb/") + item.image_id);
     case ThumbnailReadyRole:
-        return item.thumbnailReady;
+        return item.thumbnail_ready;
     default:
         return {};
     }
@@ -67,7 +67,7 @@ void GifModel::resetFiles(const QStringList &paths)
     for (const QString &path : paths) {
         Item item;
         item.path = path;
-        item.fileName = QFileInfo(path).fileName();
+        item.file_name = QFileInfo(path).fileName();
         path_to_row.insert(path, items.size());
         items.append(item);
     }
@@ -84,13 +84,13 @@ void GifModel::setThumbnail(const QString &path, const QImage &image)
     const int row = it.value();
     Item &item = items[row];
 
-    const QString old_id = item.imageId;
+    const QString old_id = item.image_id;
     item.revision++;
-    item.imageId = makeImageId(item);
-    item.thumbnailReady = true;
+    item.image_id = makeImageId(item);
+    item.thumbnail_ready = true;
 
     if (thumbnail_provider)
-        thumbnail_provider->setImage(item.imageId, image);
+        thumbnail_provider->setImage(item.image_id, image);
     if (!old_id.isEmpty() && thumbnail_provider)
         thumbnail_provider->removeImage(old_id);
 
@@ -107,8 +107,8 @@ bool GifModel::removeFile(const QString &path)
 
     const int row = it.value();
 
-    if (thumbnail_provider && !items.at(row).imageId.isEmpty())
-        thumbnail_provider->removeImage(items.at(row).imageId);
+    if (thumbnail_provider && !items.at(row).image_id.isEmpty())
+        thumbnail_provider->removeImage(items.at(row).image_id);
 
     beginRemoveRows(QModelIndex(), row, row);
     items.removeAt(row);

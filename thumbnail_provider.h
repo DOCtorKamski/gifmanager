@@ -12,7 +12,7 @@ public:
     ThumbnailProvider();
 
     QImage requestImage(const QString &id, QSize *size,
-                        const QSize &requestedSize) override;
+                        const QSize &requested_size) override;
 
     void setImage(const QString &id, const QImage &image);
     void removeImage(const QString &id);
