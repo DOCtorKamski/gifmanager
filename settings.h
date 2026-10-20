@@ -1,13 +1,19 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#include <QByteArray>
+#include <QList>
 #include <QObject>
 #include <QRect>
 #include <QSettings>
 #include <QSize>
 #include <QString>
+#include <QVariant>
 #include <QVariantMap>
+
+namespace AppIdentity {
+inline constexpr const char *ORGANIZATION = "softBy_DOCtorKamski";
+inline constexpr const char *APPLICATION = "gifmanager";
+}
 
 class SettingsManager : public QObject
 {
@@ -19,8 +25,6 @@ class SettingsManager : public QObject
     Q_PROPERTY(int thumbnailHeight READ thumbnailHeight WRITE setThumbnailHeight
                NOTIFY thumbnailSizeChanged)
     Q_PROPERTY(int columns READ getColumns WRITE setColumns NOTIFY columnsChanged)
-    Q_PROPERTY(QString thumbnailStyle READ getThumbnailStyle WRITE setThumbnailStyle
-               NOTIFY thumbnailStyleChanged)
     Q_PROPERTY(QString defaultFolder READ getDefaultFolder WRITE setDefaultFolder
                NOTIFY defaultFolderChanged)
     Q_PROPERTY(int searchDebounceMs READ getSearchDebounceMs WRITE setSearchDebounceMs
@@ -33,10 +37,6 @@ class SettingsManager : public QObject
                NOTIFY viewerSizeChanged)
     Q_PROPERTY(int viewerHeight READ viewerHeight WRITE setViewerHeight
                NOTIFY viewerSizeChanged)
-    Q_PROPERTY(QString viewerBgStyle READ getViewerBgStyle WRITE setViewerBgStyle
-               NOTIFY viewerBgStyleChanged)
-    Q_PROPERTY(QString viewerLabelStyle READ getViewerLabelStyle WRITE setViewerLabelStyle
-               NOTIFY viewerLabelStyleChanged)
     Q_PROPERTY(int gridHorizontalSpacing READ getGridHorizontalSpacing
                WRITE setGridHorizontalSpacing NOTIFY gridHorizontalSpacingChanged)
     Q_PROPERTY(int gridVerticalSpacing READ getGridVerticalSpacing
@@ -67,9 +67,6 @@ public:
     int getColumns() const;
     void setColumns(int columns);
 
-    QString getThumbnailStyle() const;
-    void setThumbnailStyle(const QString &style);
-
     QString getDefaultFolder() const;
     void setDefaultFolder(const QString &path);
 
@@ -90,12 +87,6 @@ public:
         setViewerSize(QSize(getViewerSize().width(), height));
     }
 
-    QString getViewerBgStyle() const;
-    void setViewerBgStyle(const QString &style);
-
-    QString getViewerLabelStyle() const;
-    void setViewerLabelStyle(const QString &style);
-
     int getGridHorizontalSpacing() const;
     void setGridHorizontalSpacing(int spacing);
 
@@ -112,26 +103,37 @@ public:
     Q_INVOKABLE QVariantMap defaultValues() const;
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height);
+    Q_INVOKABLE void beginUpdate();
+    Q_INVOKABLE void endUpdate();
 
 signals:
     void thumbnailSizeChanged();
     void columnsChanged();
-    void thumbnailStyleChanged();
     void defaultFolderChanged();
     void searchDebounceMsChanged();
     void visibilityDebounceMsChanged();
     void viewerSizeChanged();
-    void viewerBgStyleChanged();
-    void viewerLabelStyleChanged();
     void gridHorizontalSpacingChanged();
     void gridVerticalSpacingChanged();
     void gridScrollSpeedChanged();
     void windowGeometryChanged();
 
 private:
+    struct SettingDef {
+        const char *key;
+        const char *qml_name;
+        QVariant default_value;
+        void (SettingsManager::*notify)();
+    };
+
     SettingsManager();
 
+    static const QList<SettingDef> &settingDefs();
+    void writeSetting(const char *key, const QVariant &value,
+                      void (SettingsManager::*notify)());
+
     QSettings settings;
+    int update_depth = 0;
 
     static constexpr QSize DEFAULT_THUMB_SIZE = QSize(200, 160);
     static constexpr int DEFAULT_COLUMNS = 3;
@@ -142,25 +144,12 @@ private:
     static constexpr int DEFAULT_GRID_VSPACING = 4;
     static constexpr int DEFAULT_GRID_SCROLL_SPEED = 72;
 
-    static inline QString defaultThumbnailStyle() {
-        return "background: #999; border: 1px solid #444;";
-    }
-    static inline QString defaultViewerBgStyle() {
-        return "background: #000;";
-    }
-    static inline QString defaultViewerLabelStyle() {
-        return "background: #333; color: #fff; padding: 4px;";
-    }
-
     static constexpr const char* KEY_THUMB_SIZE = "thumbnail/size";
     static constexpr const char* KEY_COLUMNS = "layout/columns";
-    static constexpr const char* KEY_THUMB_STYLE = "thumbnail/style";
     static constexpr const char* KEY_DEFAULT_FOLDER = "folder/default";
     static constexpr const char* KEY_SEARCH_DEBOUNCE = "timers/searchDebounceMs";
     static constexpr const char* KEY_VISIBILITY_DEBOUNCE = "timers/visibilityDebounceMs";
     static constexpr const char* KEY_VIEWER_SIZE = "viewer/size";
-    static constexpr const char* KEY_VIEWER_BG_STYLE = "viewer/bgStyle";
-    static constexpr const char* KEY_VIEWER_LABEL_STYLE = "viewer/labelStyle";
     static constexpr const char* KEY_GRID_HSPACING = "layout/gridHorizontalSpacing";
     static constexpr const char* KEY_GRID_VSPACING = "layout/gridVerticalSpacing";
     static constexpr const char* KEY_GRID_SCROLL_SPEED = "layout/gridScrollSpeed";

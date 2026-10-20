@@ -32,6 +32,9 @@ qt_add_qml_module(gifmanager
         GifDelegate.qml
         GifViewerWindow.qml
         SettingsDialog.qml
+        ConfirmDeleteDialog.qml
+        RenameGifDialog.qml
+        ErrorDialog.qml
 )
 
 target_include_directories(gifmanager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

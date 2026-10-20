@@ -9,8 +9,8 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
-    app.setOrganizationName("softBy_DOCtorKamski");
-    app.setApplicationName("gifmanager");
+    app.setOrganizationName(AppIdentity::ORGANIZATION);
+    app.setApplicationName(AppIdentity::APPLICATION);
 
     auto *thumbnail_provider = new ThumbnailProvider;
     GifController controller(thumbnail_provider);
