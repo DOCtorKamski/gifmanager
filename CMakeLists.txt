@@ -13,6 +13,11 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
 
 qt_standard_project_setup()
 
+# engine.loadFromModule() resolves qrc:/qt/qml/<uri>/<type>.qml. Without this
+# policy the QML module is built with the legacy :/<uri>/ resource prefix and
+# startup fails with 'Module "gifmanager" contains no type named "Main"'.
+qt_policy(SET QTP0001 NEW)
+
 include(CTest)
 
 # ---------------------------------------------------------------------------
@@ -82,6 +87,13 @@ foreach(qml_file IN LISTS GIFMANAGER_QML_FILES)
         QT_RESOURCE_ALIAS "${qml_alias}"
     )
 endforeach()
+
+# The module's generated files (qmldir, qmltypes, copied QML sources) are
+# written into <QT_QML_OUTPUT_DIRECTORY>/<URI path>. With the default output
+# directory that would be <build>/gifmanager, i.e. the same path as the
+# gifmanager executable, and linking would fail with
+# "cannot open output file gifmanager: Is a directory".
+set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/qml")
 
 qt_add_qml_module(gifmanager
     URI gifmanager
