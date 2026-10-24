@@ -47,6 +47,7 @@ private:
     ThumbnailProvider *thumbnail_provider = nullptr;
     QVector<Item> items;
     QHash<QString, int> path_to_row;
+    quint64 generation = 0;
 };
 
 #endif // GIF_MODEL_H
