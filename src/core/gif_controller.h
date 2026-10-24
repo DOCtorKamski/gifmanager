@@ -9,8 +9,7 @@
 #include <QUrl>
 
 class QSortFilterProxyModel;
-class QThread;
-class GifLoaderWorker;
+class GifLoaderTask;
 class GifModel;
 class ThumbnailProvider;
 
@@ -64,15 +63,14 @@ signals:
     void removingPathChanged();
 
 private slots:
-    void onFilesDiscovered(quint64 load_id, const QStringList &file_paths);
-    void onGifLoaded(quint64 load_id, const QString &path, const QImage &image);
-    void onProgress(quint64 load_id, int current, int total);
-    void onFinished(quint64 load_id);
+    void onFilesDiscovered(const QStringList &file_paths);
+    void onGifLoaded(const QString &path, const QImage &image);
+    void onProgress(int current, int total);
+    void onFinished();
 
 private:
     void startLoading(bool scan_folder);
     void stopLoading();
-    void cleanupFinishedLoader();
     void reloadCurrentFolder();
     void setRemovingPath(const QString &path);
 
@@ -84,11 +82,11 @@ private:
     QString filter_query;
     QString removing_path;
 
-    QThread *loader_thread = nullptr;
-    GifLoaderWorker *current_worker = nullptr;
+    // At most one task is alive at a time: every new load cancels the previous
+    // one, which is why stale worker signals no longer need load IDs.
+    GifLoaderTask *current_task = nullptr;
 
     bool is_loading = false;
-    quint64 current_load_id = 0;
     int progress_current = 0;
     int progress_total = 0;
     QSize loaded_thumbnail_size;

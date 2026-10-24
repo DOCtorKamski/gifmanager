@@ -1,12 +1,11 @@
 #include "gif_controller.h"
 
-#include "gif_loader_worker.h"
+#include "gif_loader_task.h"
 #include "gif_model.h"
 #include "settings.h"
 #include "thumbnail_provider.h"
 
 #include <QClipboard>
-#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -17,7 +16,6 @@
 #include <QPixmap>
 #include <QRegularExpression>
 #include <QSortFilterProxyModel>
-#include <QThread>
 #include <QVariant>
 
 GifController::GifController(ThumbnailProvider *provider, QObject *parent)
@@ -120,13 +118,10 @@ void GifController::setFilterQuery(const QString &query)
 
 void GifController::startLoading(bool scan_folder)
 {
-    if (is_loading)
+    if (current_task)
         stopLoading();
 
     gif_model->resetFiles(scan_folder ? QStringList() : all_gif_files);
-
-    ++current_load_id;
-    const quint64 load_id = current_load_id;
 
     progress_current = 0;
     progress_total = scan_folder ? 0 : all_gif_files.size();
@@ -137,70 +132,36 @@ void GifController::startLoading(bool scan_folder)
 
     loaded_thumbnail_size = SettingsManager::instance().getThumbnailSize();
 
-    loader_thread = new QThread(this);
-    if (scan_folder) {
-        current_worker = new GifLoaderWorker(current_folder,
-                                             loaded_thumbnail_size,
-                                             load_id);
-    } else {
-        current_worker = new GifLoaderWorker(all_gif_files,
-                                             loaded_thumbnail_size,
-                                             load_id);
-    }
-    current_worker->moveToThread(loader_thread);
+    const GifLoadRequest request =
+        scan_folder
+            ? GifLoadRequest::fromFolder(current_folder, loaded_thumbnail_size)
+            : GifLoadRequest::fromFiles(all_gif_files, loaded_thumbnail_size);
 
-    connect(loader_thread, &QThread::started,
-            current_worker, &GifLoaderWorker::process);
-    connect(current_worker, &GifLoaderWorker::filesDiscovered,
-            this, &GifController::onFilesDiscovered, Qt::QueuedConnection);
-    connect(current_worker, &GifLoaderWorker::gifLoaded,
-            this, &GifController::onGifLoaded, Qt::QueuedConnection);
-    connect(current_worker, &GifLoaderWorker::progress,
-            this, &GifController::onProgress, Qt::QueuedConnection);
-    connect(current_worker, &GifLoaderWorker::finished,
-            this, &GifController::onFinished, Qt::QueuedConnection);
+    current_task = new GifLoaderTask(request, this);
+    connect(current_task, &GifLoaderTask::filesDiscovered,
+            this, &GifController::onFilesDiscovered);
+    connect(current_task, &GifLoaderTask::gifLoaded,
+            this, &GifController::onGifLoaded);
+    connect(current_task, &GifLoaderTask::progress,
+            this, &GifController::onProgress);
+    connect(current_task, &GifLoaderTask::finished,
+            this, &GifController::onFinished);
 
-    loader_thread->start();
+    current_task->start();
 }
 
 void GifController::stopLoading()
 {
-    if (current_worker)
-        current_worker->requestStop();
-
-    if (loader_thread) {
-        loader_thread->quit();
-        if (loader_thread->isRunning() && !loader_thread->wait(5000)) {
-            qWarning() << "Loader thread did not stop within timeout";
-            loader_thread->terminate();
-            loader_thread->wait();
-        }
+    if (current_task) {
+        current_task->cancel();
+        delete current_task;
+        current_task = nullptr;
     }
-
-    delete current_worker;
-    current_worker = nullptr;
-
-    delete loader_thread;
-    loader_thread = nullptr;
 
     if (is_loading) {
         is_loading = false;
         emit loadingChanged();
     }
-}
-
-void GifController::cleanupFinishedLoader()
-{
-    if (loader_thread) {
-        loader_thread->quit();
-        loader_thread->wait();
-    }
-
-    delete current_worker;
-    current_worker = nullptr;
-
-    delete loader_thread;
-    loader_thread = nullptr;
 }
 
 void GifController::reloadCurrentFolder()
@@ -215,9 +176,9 @@ void GifController::reloadCurrentFolder()
     startLoading(scan_folder);
 }
 
-void GifController::onFilesDiscovered(quint64 load_id, const QStringList &file_paths)
+void GifController::onFilesDiscovered(const QStringList &file_paths)
 {
-    if (load_id != current_load_id || !is_loading)
+    if (!is_loading)
         return;
 
     all_gif_files = file_paths;
@@ -228,17 +189,17 @@ void GifController::onFilesDiscovered(quint64 load_id, const QStringList &file_p
     emit progressChanged();
 }
 
-void GifController::onGifLoaded(quint64 load_id, const QString &path, const QImage &image)
+void GifController::onGifLoaded(const QString &path, const QImage &image)
 {
-    if (load_id != current_load_id || !is_loading)
+    if (!is_loading)
         return;
 
     gif_model->setThumbnail(path, image);
 }
 
-void GifController::onProgress(quint64 load_id, int current, int total)
+void GifController::onProgress(int current, int total)
 {
-    if (load_id != current_load_id || !is_loading)
+    if (!is_loading)
         return;
 
     progress_current = current;
@@ -246,10 +207,14 @@ void GifController::onProgress(quint64 load_id, int current, int total)
     emit progressChanged();
 }
 
-void GifController::onFinished(quint64 load_id)
+void GifController::onFinished()
 {
-    if (load_id != current_load_id || !is_loading)
+    if (!is_loading)
         return;
+
+    // Clear the task before emitting anything: a handler may start a new load.
+    GifLoaderTask *finished_task = current_task;
+    current_task = nullptr;
 
     progress_current = progress_total;
     emit progressChanged();
@@ -257,7 +222,8 @@ void GifController::onFinished(quint64 load_id)
     is_loading = false;
     emit loadingChanged();
 
-    cleanupFinishedLoader();
+    if (finished_task)
+        finished_task->deleteLater();
 }
 
 void GifController::copyToClipboard(const QString &path)
