@@ -36,9 +36,9 @@ public:
     QUrl currentFolderUrl() const;
     QString removingPath() const;
 
-    Q_INVOKABLE void loadFolder(const QString &path);
-    Q_INVOKABLE void loadFolderUrl(const QUrl &url);
-    Q_INVOKABLE void loadDefaultFolder();
+    Q_INVOKABLE QString loadFolder(const QString &path);
+    Q_INVOKABLE QString loadFolderUrl(const QUrl &url);
+    Q_INVOKABLE QString loadDefaultFolder();
     Q_INVOKABLE void setFilterQuery(const QString &query);
     Q_INVOKABLE void copyToClipboard(const QString &path);
     Q_INVOKABLE QString deleteFile(const QString &path);
@@ -56,7 +56,6 @@ signals:
     void progressChanged();
     void currentFolderChanged();
     void filterCleared();
-    void operationError(const QString &message);
     void fileAboutToBeRemoved(const QString &path);
     void fileRemoved(const QString &path);
     void fileRenamed(const QString &old_path, const QString &new_path);
@@ -72,6 +71,8 @@ private:
     void startLoading(bool scan_folder);
     void stopLoading();
     void reloadCurrentFolder();
+    void beginFileMutation(const QString &path);
+    void finishFileMutation();
     void setRemovingPath(const QString &path);
 
     GifModel *gif_model = nullptr;

@@ -50,7 +50,11 @@ ApplicationWindow {
                 }
                 Button {
                     text: qsTr("Go to default folder")
-                    onClicked: gifController.loadDefaultFolder()
+                    onClicked: {
+                        const error = gifController.loadDefaultFolder()
+                        if (error.length > 0)
+                            root.showError(error)
+                    }
                 }
                 Item { Layout.fillWidth: true }
             }
@@ -265,10 +269,6 @@ ApplicationWindow {
             root.hoveredPath = ""
         }
 
-        function onOperationError(message) {
-            root.showError(message)
-        }
-
         function onFileAboutToBeRemoved(path) {
             if (root.hoveredPath === path)
                 root.hoveredPath = ""
@@ -281,7 +281,11 @@ ApplicationWindow {
         id: folderDialog
         title: qsTr("Select GIF Folder")
         currentFolder: gifController.currentFolderUrl
-        onAccepted: gifController.loadFolderUrl(selectedFolder)
+        onAccepted: {
+            const error = gifController.loadFolderUrl(selectedFolder)
+            if (error.length > 0)
+                root.showError(error)
+        }
     }
 
     SettingsDialog {

@@ -69,12 +69,10 @@ QString GifController::removingPath() const
     return removing_path;
 }
 
-void GifController::loadFolder(const QString &path)
+QString GifController::loadFolder(const QString &path)
 {
-    if (path.isEmpty() || !QDir(path).exists()) {
-        emit operationError(tr("Folder not found: %1").arg(path));
-        return;
-    }
+    if (path.isEmpty() || !QDir(path).exists())
+        return tr("Folder not found: %1").arg(path);
 
     stopLoading();
 
@@ -88,26 +86,23 @@ void GifController::loadFolder(const QString &path)
     emit filterCleared();
 
     startLoading(true);
+    return {};
 }
 
-void GifController::loadFolderUrl(const QUrl &url)
+QString GifController::loadFolderUrl(const QUrl &url)
 {
-    loadFolder(url.isLocalFile() ? url.toLocalFile() : url.toString());
+    return loadFolder(url.isLocalFile() ? url.toLocalFile() : url.toString());
 }
 
-void GifController::loadDefaultFolder()
+QString GifController::loadDefaultFolder()
 {
     const QString dir = SettingsManager::instance().getDefaultFolder();
-    if (dir.isEmpty()) {
-        emit operationError(tr("No default folder is set. Please configure it in Settings."));
-        return;
-    }
-    if (!QDir(dir).exists()) {
-        emit operationError(tr("The default folder '%1' does not exist.").arg(dir));
-        return;
-    }
+    if (dir.isEmpty())
+        return tr("No default folder is set. Please configure it in Settings.");
+    if (!QDir(dir).exists())
+        return tr("The default folder '%1' does not exist.").arg(dir);
 
-    loadFolder(dir);
+    return loadFolder(dir);
 }
 
 void GifController::setFilterQuery(const QString &query)
@@ -253,23 +248,17 @@ QString GifController::deleteFile(const QString &path)
     if (!file_info.exists())
         return tr("File does not exist.");
 
-    setRemovingPath(path);
-    emit fileAboutToBeRemoved(path);
-
-    stopLoading();
-    gif_model->removeFile(path);
+    beginFileMutation(path);
 
     QFile file(path);
     if (!file.remove()) {
-        setRemovingPath(QString());
-        reloadCurrentFolder();
+        finishFileMutation();
         return tr("Failed to delete file: %1").arg(file_info.fileName());
     }
 
     all_gif_files.removeAll(path);
     emit fileRemoved(path);
-    setRemovingPath(QString());
-    reloadCurrentFolder();
+    finishFileMutation();
     return {};
 }
 
@@ -296,15 +285,10 @@ QString GifController::renameFile(const QString &path, const QString &new_base_n
     if (QFile::exists(new_file_path))
         return tr("A file with this name already exists.");
 
-    setRemovingPath(path);
-    emit fileAboutToBeRemoved(path);
-
-    stopLoading();
-    gif_model->removeFile(path);
+    beginFileMutation(path);
 
     if (!QFile::rename(path, new_file_path)) {
-        setRemovingPath(QString());
-        reloadCurrentFolder();
+        finishFileMutation();
         return tr("Failed to rename file.");
     }
 
@@ -312,9 +296,23 @@ QString GifController::renameFile(const QString &path, const QString &new_base_n
     all_gif_files.append(new_file_path);
 
     emit fileRenamed(path, new_file_path);
+    finishFileMutation();
+    return {};
+}
+
+void GifController::beginFileMutation(const QString &path)
+{
+    setRemovingPath(path);
+    emit fileAboutToBeRemoved(path);
+
+    stopLoading();
+    gif_model->removeFile(path);
+}
+
+void GifController::finishFileMutation()
+{
     setRemovingPath(QString());
     reloadCurrentFolder();
-    return {};
 }
 
 void GifController::applySettings()
