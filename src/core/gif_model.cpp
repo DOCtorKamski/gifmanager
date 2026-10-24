@@ -57,6 +57,11 @@ void GifModel::resetFiles(const QStringList &paths)
 {
     beginResetModel();
 
+    // Thumbnail URLs must not be reused across reloads: QML caches decoded
+    // thumbnails by URL, and a stale pixmap (for example from before a
+    // thumbnail-size change) would otherwise be shown.
+    ++generation;
+
     if (thumbnail_provider)
         thumbnail_provider->clear();
 
@@ -123,7 +128,8 @@ QString GifModel::makeImageId(const Item &item) const
     const QString encoded = QString::fromLatin1(
         item.path.toUtf8().toBase64(QByteArray::Base64UrlEncoding
                                     | QByteArray::OmitTrailingEquals));
-    return encoded + QLatin1Char('/') + QString::number(item.revision);
+    return encoded + QLatin1Char('/') + QString::number(item.revision)
+           + QLatin1Char('/') + QString::number(generation);
 }
 
 void GifModel::rebuildPathIndex()

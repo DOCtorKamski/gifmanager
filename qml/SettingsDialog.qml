@@ -152,7 +152,7 @@ Dialog {
                 Label { text: qsTr("Visibility debounce (ms):") }
                 SpinBox {
                     id: visibilityDebounceSpin
-                    from: 20
+                    from: 30
                     to: 500
                     editable: true
                 }

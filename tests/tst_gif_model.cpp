@@ -18,6 +18,7 @@ private slots:
     void thumbnailStartsHidden();
     void setThumbnailPublishesImage();
     void thumbnailRevisionChangesUrl();
+    void thumbnailIdChangesAcrossResets();
     void removeFileShrinksModel();
     void removeUnknownFileReturnsFalse();
     void resetFilesClearsProvider();
@@ -127,6 +128,26 @@ void TestGifModel::thumbnailRevisionChangesUrl()
     // The old revision is released so the provider does not accumulate images.
     QVERIFY(provider.requestImage(first_id, nullptr, QSize()).isNull());
     QVERIFY(!provider.requestImage(second_id, nullptr, QSize()).isNull());
+}
+
+void TestGifModel::thumbnailIdChangesAcrossResets()
+{
+    const QString path = QStringLiteral("/gifs/a.gif");
+
+    model.resetFiles({path});
+    model.setThumbnail(path, solidImage(2, 2, Qt::green));
+    const QString first_id = imageIdFromUrl(
+        model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl());
+
+    model.resetFiles({path});
+    model.setThumbnail(path, solidImage(2, 2, Qt::green));
+    const QString second_id = imageIdFromUrl(
+        model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl());
+
+    // QML caches thumbnails by URL, so a reload must not reuse the same id.
+    QVERIFY(!first_id.isEmpty());
+    QVERIFY(!second_id.isEmpty());
+    QVERIFY(first_id != second_id);
 }
 
 void TestGifModel::removeFileShrinksModel()

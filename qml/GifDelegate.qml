@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 
 Item {
     id: root
@@ -12,6 +11,7 @@ Item {
     property real thumbHeight: 160
     property real viewTop: 0
     property real viewBottom: 0
+    property bool scrolling: false
     property real cellWidth: thumbWidth
     property real cellHeight: thumbHeight
 
@@ -21,9 +21,7 @@ Item {
     readonly property bool removing: gifController.removingPath === filePath
 
     signal openRequested()
-    signal copyRequested()
-    signal deleteRequested()
-    signal renameRequested()
+    signal contextMenuRequested(real sceneX, real sceneY)
     signal hoverChanged(bool hovered)
 
     width: cellWidth
@@ -46,7 +44,7 @@ Item {
                     : ""
             fillMode: Image.PreserveAspectFit
             asynchronous: true
-            cache: false
+            cache: true
         }
 
         AnimatedImage {
@@ -55,7 +53,7 @@ Item {
             source: (root.onScreen && !root.removing)
                     ? root.fileUrl
                     : ""
-            playing: root.onScreen && !root.removing
+            playing: root.onScreen && !root.scrolling && !root.removing
             fillMode: AnimatedImage.PreserveAspectFit
             asynchronous: true
             cache: false
@@ -70,29 +68,15 @@ Item {
         hoverEnabled: true
 
         onClicked: function(mouse) {
-            if (mouse.button === Qt.LeftButton)
+            if (mouse.button === Qt.LeftButton) {
                 root.openRequested()
-            else
-                contextMenu.popup()
+            } else {
+                const p = mapToItem(null, mouse.x, mouse.y)
+                root.contextMenuRequested(p.x, p.y)
+            }
         }
 
         onEntered: root.hoverChanged(true)
         onExited: root.hoverChanged(false)
-    }
-
-    Menu {
-        id: contextMenu
-        MenuItem {
-            text: qsTr("Copy GIF")
-            onTriggered: root.copyRequested()
-        }
-        MenuItem {
-            text: qsTr("Delete")
-            onTriggered: root.deleteRequested()
-        }
-        MenuItem {
-            text: qsTr("Rename")
-            onTriggered: root.renameRequested()
-        }
     }
 }

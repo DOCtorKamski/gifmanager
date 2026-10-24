@@ -16,6 +16,7 @@ ApplicationWindow {
     property string hoveredPath: ""
     property string pendingDeletePath: ""
     property string pendingRenamePath: ""
+    property string contextMenuPath: ""
 
     Component.onCompleted: {
         if (appSettings.hasWindowGeometry) {
@@ -79,6 +80,7 @@ ApplicationWindow {
                        / Math.max(1, appSettings.columns)))
         cellHeight: Math.max(1, appSettings.thumbnailHeight
                             + appSettings.gridVerticalSpacing)
+        cacheBuffer: Math.max(1, cellHeight * 2)
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { }
 
@@ -99,35 +101,50 @@ ApplicationWindow {
             }
         }
 
-        property real viewTop: contentY
-        property real viewBottom: contentY + height
+        property bool scrolling: false
+        property real viewTop: 0
+        property real viewBottom: 0
+
+        function refreshViewport() {
+            viewTop = contentY
+            viewBottom = contentY + height
+        }
 
         Timer {
             id: viewportTimer
-            interval: Math.max(0, appSettings.visibilityDebounceMs)
+            interval: Math.max(30, appSettings.visibilityDebounceMs)
             repeat: false
             onTriggered: {
-                grid.viewTop = grid.contentY
-                grid.viewBottom = grid.contentY + grid.height
+                grid.refreshViewport()
+                grid.scrolling = false
             }
         }
 
-        onContentYChanged: viewportTimer.restart()
+        onContentYChanged: {
+            scrolling = true
+            viewportTimer.restart()
+        }
         onHeightChanged: viewportTimer.restart()
-        Component.onCompleted: viewportTimer.restart()
+        Component.onCompleted: {
+            refreshViewport()
+            viewportTimer.restart()
+        }
 
         delegate: GifDelegate {
             viewTop: grid.viewTop
             viewBottom: grid.viewBottom
+            scrolling: grid.scrolling
             cellWidth: grid.cellWidth
             cellHeight: grid.cellHeight
             thumbWidth: appSettings.thumbnailWidth
             thumbHeight: appSettings.thumbnailHeight
 
             onOpenRequested: root.toggleViewer(filePath)
-            onCopyRequested: gifController.copyToClipboard(filePath)
-            onDeleteRequested: root.requestDelete(filePath)
-            onRenameRequested: root.requestRename(filePath)
+            onContextMenuRequested: function(sceneX, sceneY) {
+                root.contextMenuPath = filePath
+                const p = grid.mapFromItem(null, sceneX, sceneY)
+                gridContextMenu.popup(grid, p.x, p.y)
+            }
             onHoverChanged: function(hovered) {
                 if (hovered) {
                     root.hoveredPath = filePath
@@ -135,6 +152,22 @@ ApplicationWindow {
                     root.hoveredPath = ""
                 }
             }
+        }
+    }
+
+    Menu {
+        id: gridContextMenu
+        MenuItem {
+            text: qsTr("Copy GIF")
+            onTriggered: gifController.copyToClipboard(root.contextMenuPath)
+        }
+        MenuItem {
+            text: qsTr("Delete")
+            onTriggered: root.requestDelete(root.contextMenuPath)
+        }
+        MenuItem {
+            text: qsTr("Rename")
+            onTriggered: root.requestRename(root.contextMenuPath)
         }
     }
 
