@@ -15,4 +15,6 @@ endfunction()
 
 gifmanager_add_test(tst_gif_model)
 gifmanager_add_test(tst_gif_loader_worker)
+gifmanager_add_test(tst_gif_loader_task)
+gifmanager_add_test(tst_gif_controller)
 gifmanager_add_test(tst_settings)

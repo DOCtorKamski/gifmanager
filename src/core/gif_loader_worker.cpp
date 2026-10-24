@@ -1,102 +1,99 @@
 #include "gif_loader_worker.h"
 
-#include <QDebug>
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QImageReader>
 
 #include <algorithm>
+#include <utility>
 
-GifLoaderWorker::GifLoaderWorker(const QStringList &files,
-                                 const QSize &thumb_size,
-                                 quint64 load_id)
-    : file_paths(files),
-      thumbnail_size(thumb_size),
-      load_id(load_id),
-      should_stop(0)
+GifLoadRequest GifLoadRequest::fromFolder(const QString &folder_path,
+                                          const QSize &thumbnail_size)
+{
+    GifLoadRequest request;
+    request.source = Source::Folder;
+    request.folder = folder_path;
+    request.thumbnail_size = thumbnail_size;
+    return request;
+}
+
+GifLoadRequest GifLoadRequest::fromFiles(const QStringList &file_paths,
+                                         const QSize &thumbnail_size)
+{
+    GifLoadRequest request;
+    request.source = Source::FileList;
+    request.files = file_paths;
+    request.thumbnail_size = thumbnail_size;
+    return request;
+}
+
+GifLoaderWorker::GifLoaderWorker(GifLoadRequest request_)
+    : request(std::move(request_))
 {
 }
 
-GifLoaderWorker::GifLoaderWorker(const QString &folder_path,
-                                 const QSize &thumb_size,
-                                 quint64 load_id)
-    : thumbnail_size(thumb_size),
-      load_id(load_id),
-      should_stop(0),
-      scan_mode(true),
-      scan_folder(folder_path)
+void GifLoaderWorker::requestStop()
 {
-}
-
-void GifLoaderWorker::requestStop() {
     should_stop.storeRelease(1);
-    qDebug() << "Stop requested for load_id:" << load_id;
 }
 
-void GifLoaderWorker::process() {
-    QStringList files = file_paths;
+bool GifLoaderWorker::shouldStop() const
+{
+    return should_stop.loadAcquire() != 0;
+}
 
-    if (scan_mode) {
+void GifLoaderWorker::process()
+{
+    QStringList files = request.files;
+
+    if (request.source == GifLoadRequest::Source::Folder) {
         files = scanFolder();
-        if (should_stop.loadAcquire()) {
-            qDebug() << "Worker stopped while scanning, load_id:" << load_id;
-            emit finished(load_id);
+        if (shouldStop()) {
+            emit finished();
             return;
         }
 
-        qDebug() << "Folder scanned, files count:" << files.count()
-                 << "load_id:" << load_id;
-        emit filesDiscovered(load_id, files);
+        emit filesDiscovered(files);
     }
 
-    qDebug() << "Worker started, files count:" << files.count() << "load_id:" << load_id;
-
-    int total = files.count();
+    const int total = files.size();
     int current = 0;
 
     for (const QString &file_path : files) {
-        if (should_stop.loadAcquire()) {
-            qDebug() << "Worker stopped at" << current << "/" << total << "load_id:" << load_id;
-            emit finished(load_id);
-            return;
-        }
+        if (shouldStop())
+            break;
 
         QImageReader reader(file_path);
-        reader.setScaledSize(thumbnail_size);
+        reader.setScaledSize(request.thumbnail_size);
 
         QImage image = reader.read();
         QImage thumbnail;
         if (!image.isNull()) {
-            thumbnail = image.scaled(thumbnail_size, Qt::KeepAspectRatio,
+            thumbnail = image.scaled(request.thumbnail_size, Qt::KeepAspectRatio,
                                      Qt::SmoothTransformation);
         } else {
-            thumbnail = QImage(thumbnail_size, QImage::Format_RGB32);
+            thumbnail = QImage(request.thumbnail_size, QImage::Format_RGB32);
             thumbnail.fill(Qt::gray);
         }
 
-        if (!should_stop.loadAcquire()) {
-            emit gifLoaded(load_id, file_path, thumbnail);
-            emit progress(load_id, ++current, total);
-        } else {
-            qDebug() << "Stopped before emit at" << current << "load_id:" << load_id;
-            emit finished(load_id);
-            return;
-        }
+        if (shouldStop())
+            break;
+
+        emit gifLoaded(file_path, thumbnail);
+        emit progress(++current, total);
     }
 
-    qDebug() << "Worker finished normally, processed:" << current << "/" << total
-             << "load_id:" << load_id;
-    emit finished(load_id);
+    emit finished();
 }
 
 QStringList GifLoaderWorker::scanFolder()
 {
     QStringList files;
 
-    QDirIterator iterator(scan_folder, {"*.gif", "*.GIF"}, QDir::Files);
+    QDirIterator iterator(request.folder, {"*.gif", "*.GIF"}, QDir::Files);
     while (iterator.hasNext()) {
-        if (should_stop.loadAcquire())
+        if (shouldStop())
             return files;
 
         iterator.next();

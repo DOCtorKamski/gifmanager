@@ -29,6 +29,7 @@ include(CTest)
 qt_add_library(gifmanager_core STATIC
     src/core/gif_controller.h src/core/gif_controller.cpp
     src/core/gif_model.h src/core/gif_model.cpp
+    src/core/gif_loader_task.h src/core/gif_loader_task.cpp
     src/core/gif_loader_worker.h src/core/gif_loader_worker.cpp
     src/core/thumbnail_provider.h src/core/thumbnail_provider.cpp
     src/core/settings.h src/core/settings.cpp

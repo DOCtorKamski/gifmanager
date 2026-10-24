@@ -52,7 +52,7 @@ void TestGifLoaderWorker::scansOnlyGifFiles()
     QVERIFY(writeFile(folder.filePath(QStringLiteral("note.txt")), "hello"));
     QVERIFY(writeFile(folder.filePath(QStringLiteral("picture.png")), "not a png"));
 
-    GifLoaderWorker worker(folder.path(), QSize(8, 8), 7);
+    GifLoaderWorker worker(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
     QSignalSpy discovered(&worker, &GifLoaderWorker::filesDiscovered);
     QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
     QSignalSpy finished(&worker, &GifLoaderWorker::finished);
@@ -60,9 +60,8 @@ void TestGifLoaderWorker::scansOnlyGifFiles()
     worker.process();
 
     QCOMPARE(discovered.count(), 1);
-    QCOMPARE(discovered.first().at(0).toULongLong(), 7ULL);
 
-    const QStringList files = discovered.first().at(1).toStringList();
+    const QStringList files = discovered.first().at(0).toStringList();
     QCOMPARE(files.size(), 2);
     QCOMPARE(QFileInfo(files.at(0)).fileName(), QStringLiteral("a.GIF"));
     QCOMPARE(QFileInfo(files.at(1)).fileName(), QStringLiteral("b.gif"));
@@ -80,12 +79,12 @@ void TestGifLoaderWorker::scansGifFilesSortedByName()
     QVERIFY(writeFile(folder.filePath(QStringLiteral("m.gif")), tinyGif()));
     QVERIFY(writeFile(folder.filePath(QStringLiteral("a.gif")), tinyGif()));
 
-    GifLoaderWorker worker(folder.path(), QSize(8, 8), 1);
+    GifLoaderWorker worker(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
     QSignalSpy discovered(&worker, &GifLoaderWorker::filesDiscovered);
 
     worker.process();
 
-    const QStringList files = discovered.first().at(1).toStringList();
+    const QStringList files = discovered.first().at(0).toStringList();
     QCOMPARE(files.size(), 3);
     QCOMPARE(QFileInfo(files.at(0)).fileName(), QStringLiteral("a.gif"));
     QCOMPARE(QFileInfo(files.at(1)).fileName(), QStringLiteral("m.gif"));
@@ -99,7 +98,7 @@ void TestGifLoaderWorker::reportsFilesBeforeThumbnails()
     QVERIFY(writeFile(folder.filePath(QStringLiteral("a.gif")), tinyGif()));
     QVERIFY(writeFile(folder.filePath(QStringLiteral("b.gif")), tinyGif()));
 
-    GifLoaderWorker worker(folder.path(), QSize(8, 8), 2);
+    GifLoaderWorker worker(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
 
     QStringList order;
     connect(&worker, &GifLoaderWorker::filesDiscovered, this,
@@ -128,7 +127,7 @@ void TestGifLoaderWorker::explicitFileListSkipsScan()
     QVERIFY(writeFile(second, tinyGif()));
 
     const QStringList files{first, second};
-    GifLoaderWorker worker(files, QSize(4, 4), 5);
+    GifLoaderWorker worker(GifLoadRequest::fromFiles(files, QSize(4, 4)));
     QSignalSpy discovered(&worker, &GifLoaderWorker::filesDiscovered);
     QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
     QSignalSpy progress(&worker, &GifLoaderWorker::progress);
@@ -139,9 +138,9 @@ void TestGifLoaderWorker::explicitFileListSkipsScan()
     QCOMPARE(discovered.count(), 0);
     QCOMPARE(loaded.count(), 2);
     QCOMPARE(progress.count(), 2);
+    QCOMPARE(progress.last().at(0).toInt(), 2);
     QCOMPARE(progress.last().at(1).toInt(), 2);
-    QCOMPARE(progress.last().at(2).toInt(), 2);
-    QCOMPARE(loaded.last().at(1).toString(), second);
+    QCOMPARE(loaded.last().at(0).toString(), second);
     QCOMPARE(finished.count(), 1);
 }
 
@@ -152,7 +151,7 @@ void TestGifLoaderWorker::stopRequestBeforeProcessEmitsNoResults()
     const QString file = folder.filePath(QStringLiteral("a.gif"));
     QVERIFY(writeFile(file, tinyGif()));
 
-    GifLoaderWorker worker(QStringList{file}, QSize(8, 8), 3);
+    GifLoaderWorker worker(GifLoadRequest::fromFiles({file}, QSize(8, 8)));
     worker.requestStop();
 
     QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
@@ -162,7 +161,6 @@ void TestGifLoaderWorker::stopRequestBeforeProcessEmitsNoResults()
 
     QCOMPARE(loaded.count(), 0);
     QCOMPARE(finished.count(), 1);
-    QCOMPARE(finished.first().at(0).toULongLong(), 3ULL);
 }
 
 void TestGifLoaderWorker::invalidImageProducesPlaceholder()
@@ -172,13 +170,13 @@ void TestGifLoaderWorker::invalidImageProducesPlaceholder()
     const QString broken = folder.filePath(QStringLiteral("broken.gif"));
     QVERIFY(writeFile(broken, "this is not a gif"));
 
-    GifLoaderWorker worker(QStringList{broken}, QSize(12, 9), 4);
+    GifLoaderWorker worker(GifLoadRequest::fromFiles({broken}, QSize(12, 9)));
     QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
 
     worker.process();
 
     QCOMPARE(loaded.count(), 1);
-    QCOMPARE(loaded.first().at(2).value<QImage>().size(), QSize(12, 9));
+    QCOMPARE(loaded.first().at(1).value<QImage>().size(), QSize(12, 9));
 }
 
 QTEST_GUILESS_MAIN(TestGifLoaderWorker)

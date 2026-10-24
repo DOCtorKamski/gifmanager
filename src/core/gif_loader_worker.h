@@ -5,19 +5,32 @@
 #include <QImage>
 #include <QObject>
 #include <QSize>
+#include <QString>
 #include <QStringList>
-#include <QThread>
+
+struct GifLoadRequest
+{
+    enum class Source {
+        Folder,
+        FileList
+    };
+
+    Source source = Source::FileList;
+    QString folder;
+    QStringList files;
+    QSize thumbnail_size;
+
+    static GifLoadRequest fromFolder(const QString &folder_path,
+                                     const QSize &thumbnail_size);
+    static GifLoadRequest fromFiles(const QStringList &file_paths,
+                                    const QSize &thumbnail_size);
+};
 
 class GifLoaderWorker : public QObject
 {
     Q_OBJECT
 public:
-    explicit GifLoaderWorker(const QStringList &files,
-                             const QSize &thumb_size,
-                             quint64 load_id = 0);
-    explicit GifLoaderWorker(const QString &folder_path,
-                             const QSize &thumb_size,
-                             quint64 load_id = 0);
+    explicit GifLoaderWorker(GifLoadRequest request);
 
     void requestStop();
 
@@ -25,20 +38,17 @@ public slots:
     void process();
 
 signals:
-    void filesDiscovered(quint64 load_id, const QStringList &file_paths);
-    void gifLoaded(quint64 load_id, const QString &file_path, const QImage &thumbnail);
-    void finished(quint64 load_id);
-    void progress(quint64 load_id, int current, int total);
+    void filesDiscovered(const QStringList &file_paths);
+    void gifLoaded(const QString &file_path, const QImage &thumbnail);
+    void progress(int current, int total);
+    void finished();
 
 private:
     QStringList scanFolder();
+    bool shouldStop() const;
 
-    QStringList file_paths;
-    QSize thumbnail_size;
-    quint64 load_id;
-    QAtomicInt should_stop;
-    bool scan_mode = false;
-    QString scan_folder;
+    GifLoadRequest request;
+    QAtomicInt should_stop{0};
 };
 
 #endif // GIF_LOADER_WORKER_H
