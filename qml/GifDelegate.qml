@@ -45,9 +45,14 @@ Item {
             fillMode: Image.PreserveAspectFit
             asynchronous: true
             cache: true
+            // Hide the static thumbnail once the animation is showing frames;
+            // otherwise its first frame shows through transparent pixels.
+            visible: root.thumbnailReady && !root.removing
+                     && animation.status !== AnimatedImage.Ready
         }
 
         AnimatedImage {
+            id: animation
             anchors.fill: parent
             anchors.margins: 1
             source: (root.onScreen && !root.removing)
