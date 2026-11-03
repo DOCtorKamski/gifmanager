@@ -53,7 +53,10 @@ Item {
             source: (root.onScreen && !root.removing)
                     ? root.fileUrl
                     : ""
-            playing: root.onScreen && !root.scrolling && !root.removing
+            // Pause instead of stopping: QMovie::stop() resets playback to the
+            // first frame, while setPaused() resumes from the current frame.
+            playing: root.onScreen && !root.removing
+            paused: root.scrolling
             fillMode: AnimatedImage.PreserveAspectFit
             asynchronous: true
             cache: false
