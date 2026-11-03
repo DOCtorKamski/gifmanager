@@ -32,21 +32,6 @@ Dialog {
         gridVSpacingSpin.value = AppSettings.gridVerticalSpacing
     }
 
-    function loadDefaults() {
-        const defaults = AppSettings.defaultValues()
-        widthSpin.value = defaults.thumbnailWidth
-        heightSpin.value = defaults.thumbnailHeight
-        columnsSpin.value = defaults.columns
-        scrollSpeedSpin.value = defaults.gridScrollSpeed
-        defaultFolderField.text = defaults.defaultFolder
-        searchDebounceSpin.value = defaults.searchDebounceMs
-        visibilityDebounceSpin.value = defaults.visibilityDebounceMs
-        viewerWidthSpin.value = defaults.viewerWidth
-        viewerHeightSpin.value = defaults.viewerHeight
-        gridHSpacingSpin.value = defaults.gridHorizontalSpacing
-        gridVSpacingSpin.value = defaults.gridVerticalSpacing
-    }
-
     function applyValues() {
         AppSettings.beginUpdate()
         AppSettings.thumbnailWidth = widthSpin.value
@@ -199,7 +184,11 @@ Dialog {
 
         Button {
             text: qsTr("Reset to Defaults")
-            onClicked: root.loadDefaults()
+            onClicked: {
+                AppSettings.resetToDefaults()
+                root.loadFromSettings()
+                root.settingsApplied()
+            }
         }
 
         Item { Layout.fillWidth: true }
