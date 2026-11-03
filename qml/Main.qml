@@ -261,7 +261,7 @@ ApplicationWindow {
     }
 
     Connections {
-        target: gifController
+        target: GifController
 
         function onFilterCleared() {
             searchField.text = ""
