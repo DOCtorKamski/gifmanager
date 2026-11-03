@@ -135,7 +135,7 @@ private:
     QSettings settings;
     int update_depth = 0;
 
-    static constexpr QSize DEFAULT_THUMB_SIZE = QSize(200, 160);
+    static constexpr QSize DEFAULT_THUMB_SIZE = QSize(210, 170);
     static constexpr int DEFAULT_COLUMNS = 3;
     static constexpr int DEFAULT_SEARCH_DEBOUNCE = 200;
     static constexpr int DEFAULT_VISIBILITY_DEBOUNCE = 50;
