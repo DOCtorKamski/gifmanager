@@ -1,6 +1,7 @@
 #include <QtTest>
 
 #include "gif_controller.h"
+#include "gif_model.h"
 #include "settings.h"
 #include "thumbnail_provider.h"
 
@@ -42,6 +43,17 @@ QStringList writeGifs(QTemporaryDir &folder, int count)
     return paths;
 }
 
+QStringList rowFileNames(QAbstractItemModel *model)
+{
+    QStringList names;
+    for (int row = 0; row < model->rowCount(); ++row) {
+        names.append(model->index(row, 0)
+                         .data(GifModel::FileNameRole)
+                         .toString());
+    }
+    return names;
+}
+
 } // namespace
 
 class TestGifController : public QObject
@@ -56,7 +68,9 @@ private slots:
     void deleteFileRemovesRowAndReloads();
     void deleteMissingFileReturnsError();
     void renameFilePreservesExtensionAndReloads();
+    void renameKeepsAlphabeticalOrder();
     void renameRejectsInvalidNameWithoutReloading();
+    void reloadPicksUpExternalFiles();
 
 private:
     QTemporaryDir settings_dir;
@@ -175,6 +189,62 @@ void TestGifController::renameFilePreservesExtensionAndReloads()
     QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
     QCOMPARE(controller.proxyModel()->rowCount(), 2);
     QCOMPARE(controller.removingPath(), QString());
+}
+
+void TestGifController::renameKeepsAlphabeticalOrder()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    const QStringList files = writeGifs(folder, 3);
+    QVERIFY(!files.isEmpty());
+
+    ThumbnailProvider provider;
+    GifController controller(&provider);
+
+    const QString load_error = controller.loadFolder(folder.path());
+    QVERIFY2(load_error.isEmpty(), qPrintable(load_error));
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+
+    QCOMPARE(rowFileNames(controller.proxyModel()),
+             QStringList({QStringLiteral("gif_000.gif"),
+                          QStringLiteral("gif_001.gif"),
+                          QStringLiteral("gif_002.gif")}));
+
+    const QString error = controller.renameFile(files.first(),
+                                                QStringLiteral("zzz"));
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+
+    QCOMPARE(rowFileNames(controller.proxyModel()),
+             QStringList({QStringLiteral("gif_001.gif"),
+                          QStringLiteral("gif_002.gif"),
+                          QStringLiteral("zzz.gif")}));
+}
+
+void TestGifController::reloadPicksUpExternalFiles()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    const QStringList files = writeGifs(folder, 2);
+    QVERIFY(!files.isEmpty());
+
+    ThumbnailProvider provider;
+    GifController controller(&provider);
+
+    const QString load_error = controller.loadFolder(folder.path());
+    QVERIFY2(load_error.isEmpty(), qPrintable(load_error));
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+
+    const QString external_path = folder.filePath(QStringLiteral("extra.gif"));
+    QVERIFY(writeFile(external_path, tinyGif()));
+
+    const QString error = controller.deleteFile(files.first());
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+
+    QCOMPARE(rowFileNames(controller.proxyModel()),
+             QStringList({QStringLiteral("extra.gif"),
+                          QStringLiteral("gif_001.gif")}));
 }
 
 void TestGifController::renameRejectsInvalidNameWithoutReloading()

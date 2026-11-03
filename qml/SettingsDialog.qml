@@ -17,23 +17,23 @@ Dialog {
     onOpened: loadFromSettings()
 
     function loadFromSettings() {
-        widthSpin.value = appSettings.thumbnailWidth
-        heightSpin.value = appSettings.thumbnailHeight
-        columnsSpin.value = appSettings.columns
-        scrollSpeedSpin.value = appSettings.gridScrollSpeed
-        defaultFolderField.text = appSettings.defaultFolder
+        widthSpin.value = AppSettings.thumbnailWidth
+        heightSpin.value = AppSettings.thumbnailHeight
+        columnsSpin.value = AppSettings.columns
+        scrollSpeedSpin.value = AppSettings.gridScrollSpeed
+        defaultFolderField.text = AppSettings.defaultFolder
 
-        viewerWidthSpin.value = appSettings.viewerWidth
-        viewerHeightSpin.value = appSettings.viewerHeight
+        viewerWidthSpin.value = AppSettings.viewerWidth
+        viewerHeightSpin.value = AppSettings.viewerHeight
 
-        searchDebounceSpin.value = appSettings.searchDebounceMs
-        visibilityDebounceSpin.value = appSettings.visibilityDebounceMs
-        gridHSpacingSpin.value = appSettings.gridHorizontalSpacing
-        gridVSpacingSpin.value = appSettings.gridVerticalSpacing
+        searchDebounceSpin.value = AppSettings.searchDebounceMs
+        visibilityDebounceSpin.value = AppSettings.visibilityDebounceMs
+        gridHSpacingSpin.value = AppSettings.gridHorizontalSpacing
+        gridVSpacingSpin.value = AppSettings.gridVerticalSpacing
     }
 
     function loadDefaults() {
-        const defaults = appSettings.defaultValues()
+        const defaults = AppSettings.defaultValues()
         widthSpin.value = defaults.thumbnailWidth
         heightSpin.value = defaults.thumbnailHeight
         columnsSpin.value = defaults.columns
@@ -48,19 +48,19 @@ Dialog {
     }
 
     function applyValues() {
-        appSettings.beginUpdate()
-        appSettings.thumbnailWidth = widthSpin.value
-        appSettings.thumbnailHeight = heightSpin.value
-        appSettings.columns = columnsSpin.value
-        appSettings.gridScrollSpeed = scrollSpeedSpin.value
-        appSettings.defaultFolder = defaultFolderField.text.trim()
-        appSettings.searchDebounceMs = searchDebounceSpin.value
-        appSettings.visibilityDebounceMs = visibilityDebounceSpin.value
-        appSettings.viewerWidth = viewerWidthSpin.value
-        appSettings.viewerHeight = viewerHeightSpin.value
-        appSettings.gridHorizontalSpacing = gridHSpacingSpin.value
-        appSettings.gridVerticalSpacing = gridVSpacingSpin.value
-        appSettings.endUpdate()
+        AppSettings.beginUpdate()
+        AppSettings.thumbnailWidth = widthSpin.value
+        AppSettings.thumbnailHeight = heightSpin.value
+        AppSettings.columns = columnsSpin.value
+        AppSettings.gridScrollSpeed = scrollSpeedSpin.value
+        AppSettings.defaultFolder = defaultFolderField.text.trim()
+        AppSettings.searchDebounceMs = searchDebounceSpin.value
+        AppSettings.visibilityDebounceMs = visibilityDebounceSpin.value
+        AppSettings.viewerWidth = viewerWidthSpin.value
+        AppSettings.viewerHeight = viewerHeightSpin.value
+        AppSettings.gridHorizontalSpacing = gridHSpacingSpin.value
+        AppSettings.gridVerticalSpacing = gridVSpacingSpin.value
+        AppSettings.endUpdate()
         root.settingsApplied()
     }
 
@@ -226,7 +226,7 @@ Dialog {
     FolderDialog {
         id: browseDialog
         title: qsTr("Select Default Folder")
-        currentFolder: gifController.localFileUrl(defaultFolderField.text)
-        onAccepted: defaultFolderField.text = gifController.localPathFromUrl(selectedFolder)
+        currentFolder: GifController.localFileUrl(defaultFolderField.text)
+        onAccepted: defaultFolderField.text = GifController.localPathFromUrl(selectedFolder)
     }
 }

@@ -79,13 +79,11 @@ QString GifController::loadFolder(const QString &path)
     current_folder = path;
     emit currentFolderChanged();
 
-    all_gif_files.clear();
-
     filter_query.clear();
     proxy_model->setFilterFixedString(QString());
     emit filterCleared();
 
-    startLoading(true);
+    startLoading();
     return {};
 }
 
@@ -111,15 +109,15 @@ void GifController::setFilterQuery(const QString &query)
     proxy_model->setFilterFixedString(filter_query);
 }
 
-void GifController::startLoading(bool scan_folder)
+void GifController::startLoading()
 {
     if (current_task)
         stopLoading();
 
-    gif_model->resetFiles(scan_folder ? QStringList() : all_gif_files);
+    gif_model->resetFiles(QStringList());
 
     progress_current = 0;
-    progress_total = scan_folder ? 0 : all_gif_files.size();
+    progress_total = 0;
     emit progressChanged();
 
     is_loading = true;
@@ -128,9 +126,7 @@ void GifController::startLoading(bool scan_folder)
     loaded_thumbnail_size = SettingsManager::instance().getThumbnailSize();
 
     const GifLoadRequest request =
-        scan_folder
-            ? GifLoadRequest::fromFolder(current_folder, loaded_thumbnail_size)
-            : GifLoadRequest::fromFiles(all_gif_files, loaded_thumbnail_size);
+        GifLoadRequest::fromFolder(current_folder, loaded_thumbnail_size);
 
     current_task = new GifLoaderTask(request, this);
     connect(current_task, &GifLoaderTask::filesDiscovered,
@@ -164,11 +160,10 @@ void GifController::reloadCurrentFolder()
     if (current_folder.isEmpty())
         return;
 
-    // If the previous load was still scanning, all_gif_files is empty.
-    // Rescan the folder instead of reloading an empty list.
-    const bool scan_folder = all_gif_files.isEmpty();
+    // Always rescan so files added or removed outside the application are
+    // picked up as well.
     stopLoading();
-    startLoading(scan_folder);
+    startLoading();
 }
 
 void GifController::onFilesDiscovered(const QStringList &file_paths)
@@ -176,7 +171,6 @@ void GifController::onFilesDiscovered(const QStringList &file_paths)
     if (!is_loading)
         return;
 
-    all_gif_files = file_paths;
     gif_model->resetFiles(file_paths);
 
     progress_current = 0;
@@ -256,7 +250,6 @@ QString GifController::deleteFile(const QString &path)
         return tr("Failed to delete file: %1").arg(file_info.fileName());
     }
 
-    all_gif_files.removeAll(path);
     emit fileRemoved(path);
     finishFileMutation();
     return {};
@@ -291,9 +284,6 @@ QString GifController::renameFile(const QString &path, const QString &new_base_n
         finishFileMutation();
         return tr("Failed to rename file.");
     }
-
-    all_gif_files.removeAll(path);
-    all_gif_files.append(new_file_path);
 
     emit fileRenamed(path, new_file_path);
     finishFileMutation();

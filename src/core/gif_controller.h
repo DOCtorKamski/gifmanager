@@ -68,7 +68,7 @@ private slots:
     void onFinished();
 
 private:
-    void startLoading(bool scan_folder);
+    void startLoading();
     void stopLoading();
     void reloadCurrentFolder();
     void beginFileMutation(const QString &path);
@@ -78,7 +78,6 @@ private:
     GifModel *gif_model = nullptr;
     QSortFilterProxyModel *proxy_model = nullptr;
 
-    QStringList all_gif_files;
     QString current_folder;
     QString filter_query;
     QString removing_path;
