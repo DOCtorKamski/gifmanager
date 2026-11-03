@@ -18,7 +18,7 @@ Item {
     readonly property bool onScreen: visible
                                       && (y + height > viewTop)
                                       && (y < viewBottom)
-    readonly property bool removing: gifController.removingPath === filePath
+    readonly property bool removing: GifController.removingPath === filePath
 
     signal openRequested()
     signal contextMenuRequested(real sceneX, real sceneY)
@@ -32,8 +32,8 @@ Item {
         width: Math.min(root.thumbWidth, root.width)
         height: Math.min(root.thumbHeight, root.height)
         anchors.centerIn: parent
-        color: "#999"
-        border.color: "#444"
+        color: "#999999"
+        border.color: "#444444"
         border.width: 1
 
         Image {

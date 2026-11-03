@@ -4,7 +4,7 @@
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <QQmlContext>
+#include <qqml.h>
 
 int main(int argc, char *argv[])
 {
@@ -15,11 +15,13 @@ int main(int argc, char *argv[])
     auto *thumbnail_provider = new ThumbnailProvider;
     GifController controller(thumbnail_provider);
 
+    qmlRegisterSingletonInstance("gifmanager", 1, 0, "AppSettings",
+                                 &SettingsManager::instance());
+    qmlRegisterSingletonInstance("gifmanager", 1, 0, "GifController",
+                                 &controller);
+
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("gifthumb"), thumbnail_provider);
-    engine.rootContext()->setContextProperty(QStringLiteral("appSettings"),
-                                             &SettingsManager::instance());
-    engine.rootContext()->setContextProperty(QStringLiteral("gifController"), &controller);
 
     QObject::connect(&app, &QGuiApplication::aboutToQuit,
                      &controller, &GifController::shutdown);

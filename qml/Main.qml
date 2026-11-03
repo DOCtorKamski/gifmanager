@@ -19,8 +19,8 @@ ApplicationWindow {
     property string contextMenuPath: ""
 
     Component.onCompleted: {
-        if (appSettings.hasWindowGeometry) {
-            const geometry = appSettings.windowGeometry
+        if (AppSettings.hasWindowGeometry) {
+            const geometry = AppSettings.windowGeometry
             x = geometry.x
             y = geometry.y
             width = geometry.width
@@ -29,7 +29,7 @@ ApplicationWindow {
     }
 
     onClosing: {
-        appSettings.saveWindowGeometry(x, y, width, height)
+        AppSettings.saveWindowGeometry(x, y, width, height)
         closeViewer()
     }
 
@@ -51,7 +51,7 @@ ApplicationWindow {
                 Button {
                     text: qsTr("Go to default folder")
                     onClicked: {
-                        const error = gifController.loadDefaultFolder()
+                        const error = GifController.loadDefaultFolder()
                         if (error.length > 0)
                             root.showError(error)
                     }
@@ -78,12 +78,12 @@ ApplicationWindow {
         id: grid
         anchors.fill: parent
         clip: true
-        model: gifController.proxyModel
+        model: GifController.proxyModel
         cellWidth: Math.max(1, Math.floor((width
-                       - (appSettings.columns - 1) * appSettings.gridHorizontalSpacing)
-                       / Math.max(1, appSettings.columns)))
-        cellHeight: Math.max(1, appSettings.thumbnailHeight
-                            + appSettings.gridVerticalSpacing)
+                       - (AppSettings.columns - 1) * AppSettings.gridHorizontalSpacing)
+                       / Math.max(1, AppSettings.columns)))
+        cellHeight: Math.max(1, AppSettings.thumbnailHeight
+                            + AppSettings.gridVerticalSpacing)
         cacheBuffer: Math.max(1, cellHeight * 2)
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { }
@@ -93,7 +93,7 @@ ApplicationWindow {
             blocking: true
 
             onWheel: function(event) {
-                const pixels_per_notch = appSettings.gridScrollSpeed
+                const pixels_per_notch = AppSettings.gridScrollSpeed
                 const delta = event.pixelDelta.y !== 0
                       ? event.pixelDelta.y * pixels_per_notch / 72
                       : event.angleDelta.y / 120 * pixels_per_notch
@@ -116,7 +116,7 @@ ApplicationWindow {
 
         Timer {
             id: viewportTimer
-            interval: Math.max(30, appSettings.visibilityDebounceMs)
+            interval: Math.max(30, AppSettings.visibilityDebounceMs)
             repeat: false
             onTriggered: {
                 grid.refreshViewport()
@@ -140,8 +140,8 @@ ApplicationWindow {
             scrolling: grid.scrolling
             cellWidth: grid.cellWidth
             cellHeight: grid.cellHeight
-            thumbWidth: appSettings.thumbnailWidth
-            thumbHeight: appSettings.thumbnailHeight
+            thumbWidth: AppSettings.thumbnailWidth
+            thumbHeight: AppSettings.thumbnailHeight
 
             onOpenRequested: root.toggleViewer(filePath)
             onContextMenuRequested: function(sceneX, sceneY) {
@@ -163,7 +163,7 @@ ApplicationWindow {
         id: gridContextMenu
         MenuItem {
             text: qsTr("Copy GIF")
-            onTriggered: gifController.copyToClipboard(root.contextMenuPath)
+            onTriggered: GifController.copyToClipboard(root.contextMenuPath)
         }
         MenuItem {
             text: qsTr("Delete")
@@ -177,11 +177,11 @@ ApplicationWindow {
 
     Label {
         anchors.centerIn: parent
-        visible: grid.count === 0 && !gifController.loading
-        text: gifController.currentFolder.length > 0
+        visible: grid.count === 0 && !GifController.loading
+        text: GifController.currentFolder.length > 0
               ? qsTr("No GIFs found")
               : qsTr("Choose a folder with GIFs")
-        color: "#777"
+        color: "#777777"
     }
 
     footer: ToolBar {
@@ -189,17 +189,17 @@ ApplicationWindow {
             anchors.fill: parent
             Label {
                 Layout.fillWidth: true
-                text: gifController.loading
+                text: GifController.loading
                       ? qsTr("Loading: %1/%2")
-                        .arg(gifController.progressCurrent)
-                        .arg(gifController.progressTotal)
+                        .arg(GifController.progressCurrent)
+                        .arg(GifController.progressTotal)
                       : qsTr("Ready")
             }
             ProgressBar {
-                visible: gifController.loading
+                visible: GifController.loading
                 from: 0
-                to: Math.max(1, gifController.progressTotal)
-                value: gifController.progressCurrent
+                to: Math.max(1, GifController.progressTotal)
+                value: GifController.progressCurrent
                 Layout.preferredWidth: 220
             }
         }
@@ -207,11 +207,11 @@ ApplicationWindow {
 
     Timer {
         id: searchTimer
-        interval: appSettings.searchDebounceMs
+        interval: AppSettings.searchDebounceMs
         repeat: false
         onTriggered: {
             root.hoveredPath = ""
-            gifController.setFilterQuery(searchField.text)
+            GifController.setFilterQuery(searchField.text)
             grid.positionViewAtBeginning()
             viewportTimer.restart()
         }
@@ -220,7 +220,7 @@ ApplicationWindow {
     Shortcut {
         sequences: ["Ctrl+C"]
         enabled: root.hoveredPath.length > 0 && !searchField.activeFocus
-        onActivated: gifController.copyToClipboard(root.hoveredPath)
+        onActivated: GifController.copyToClipboard(root.hoveredPath)
     }
 
     Shortcut {
@@ -280,9 +280,9 @@ ApplicationWindow {
     FolderDialog {
         id: folderDialog
         title: qsTr("Select GIF Folder")
-        currentFolder: gifController.currentFolderUrl
+        currentFolder: GifController.currentFolderUrl
         onAccepted: {
-            const error = gifController.loadFolderUrl(selectedFolder)
+            const error = GifController.loadFolderUrl(selectedFolder)
             if (error.length > 0)
                 root.showError(error)
         }
@@ -290,28 +290,28 @@ ApplicationWindow {
 
     SettingsDialog {
         id: settingsDialog
-        onSettingsApplied: gifController.applySettings()
+        onSettingsApplied: GifController.applySettings()
     }
 
     GifViewerWindow {
         id: viewerWindow
         transientParent: root
         filePath: root.viewerPath
-        fileUrl: gifController.localFileUrl(root.viewerPath)
-        fileName: gifController.displayName(root.viewerPath)
+        fileUrl: GifController.localFileUrl(root.viewerPath)
+        fileName: GifController.displayName(root.viewerPath)
 
         onCloseRequested: root.closeViewer()
-        onCopyRequested: gifController.copyToClipboard(root.viewerPath)
+        onCopyRequested: GifController.copyToClipboard(root.viewerPath)
         onDeleteRequested: root.requestDelete(root.viewerPath)
         onRenameRequested: root.requestRename(root.viewerPath)
     }
 
     ConfirmDeleteDialog {
         id: deleteDialog
-        fileName: gifController.displayName(root.pendingDeletePath)
+        fileName: GifController.displayName(root.pendingDeletePath)
 
         onDeleteConfirmed: {
-            const error = gifController.deleteFile(root.pendingDeletePath)
+            const error = GifController.deleteFile(root.pendingDeletePath)
             if (error.length > 0)
                 root.showError(error)
         }
@@ -319,10 +319,10 @@ ApplicationWindow {
 
     RenameGifDialog {
         id: renameDialog
-        currentName: gifController.baseNameForPath(root.pendingRenamePath)
+        currentName: GifController.baseNameForPath(root.pendingRenamePath)
 
         onRenameSubmitted: function(new_name) {
-            const error = gifController.renameFile(root.pendingRenamePath, new_name)
+            const error = GifController.renameFile(root.pendingRenamePath, new_name)
             if (error.length > 0)
                 renameDialog.errorText = error
             else
