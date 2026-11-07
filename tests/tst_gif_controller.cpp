@@ -142,7 +142,7 @@ void TestGifController::deleteFileRemovesRowAndReloads()
 
     QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
     QCOMPARE(controller.proxyModel()->rowCount(), 2);
-    QCOMPARE(controller.removingPath(), QString());
+    QCOMPARE(controller.mutatingPath(), QString());
 }
 
 void TestGifController::deleteMissingFileReturnsError()
@@ -188,7 +188,7 @@ void TestGifController::renameFilePreservesExtensionAndReloads()
 
     QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
     QCOMPARE(controller.proxyModel()->rowCount(), 2);
-    QCOMPARE(controller.removingPath(), QString());
+    QCOMPARE(controller.mutatingPath(), QString());
 }
 
 void TestGifController::renameKeepsAlphabeticalOrder()

@@ -64,9 +64,9 @@ QUrl GifController::currentFolderUrl() const
     return current_folder.isEmpty() ? QUrl() : QUrl::fromLocalFile(current_folder);
 }
 
-QString GifController::removingPath() const
+QString GifController::mutatingPath() const
 {
-    return removing_path;
+    return mutating_path;
 }
 
 QString GifController::loadFolder(const QString &path)
@@ -79,7 +79,6 @@ QString GifController::loadFolder(const QString &path)
     current_folder = path;
     emit currentFolderChanged();
 
-    filter_query.clear();
     proxy_model->setFilterFixedString(QString());
     emit filterCleared();
 
@@ -105,8 +104,7 @@ QString GifController::loadDefaultFolder()
 
 void GifController::setFilterQuery(const QString &query)
 {
-    filter_query = query.trimmed();
-    proxy_model->setFilterFixedString(filter_query);
+    proxy_model->setFilterFixedString(query.trimmed());
 }
 
 void GifController::startLoading()
@@ -250,7 +248,6 @@ QString GifController::deleteFile(const QString &path)
         return tr("Failed to delete file: %1").arg(file_info.fileName());
     }
 
-    emit fileRemoved(path);
     finishFileMutation();
     return {};
 }
@@ -285,15 +282,14 @@ QString GifController::renameFile(const QString &path, const QString &new_base_n
         return tr("Failed to rename file.");
     }
 
-    emit fileRenamed(path, new_file_path);
     finishFileMutation();
     return {};
 }
 
 void GifController::beginFileMutation(const QString &path)
 {
-    setRemovingPath(path);
-    emit fileAboutToBeRemoved(path);
+    setMutatingPath(path);
+    emit fileAboutToChange(path);
 
     stopLoading();
     gif_model->removeFile(path);
@@ -301,7 +297,7 @@ void GifController::beginFileMutation(const QString &path)
 
 void GifController::finishFileMutation()
 {
-    setRemovingPath(QString());
+    setMutatingPath(QString());
     reloadCurrentFolder();
 }
 
@@ -317,13 +313,13 @@ void GifController::shutdown()
     stopLoading();
 }
 
-void GifController::setRemovingPath(const QString &path)
+void GifController::setMutatingPath(const QString &path)
 {
-    if (removing_path == path)
+    if (mutating_path == path)
         return;
 
-    removing_path = path;
-    emit removingPathChanged();
+    mutating_path = path;
+    emit mutatingPathChanged();
 }
 
 QString GifController::displayName(const QString &path) const

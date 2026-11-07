@@ -269,7 +269,7 @@ ApplicationWindow {
             root.hoveredPath = ""
         }
 
-        function onFileAboutToBeRemoved(path) {
+        function onFileAboutToChange(path) {
             if (root.hoveredPath === path)
                 root.hoveredPath = ""
             if (root.viewerPath === path)

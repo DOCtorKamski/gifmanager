@@ -22,7 +22,7 @@ class GifController : public QObject
     Q_PROPERTY(int progressTotal READ progressTotal NOTIFY progressChanged)
     Q_PROPERTY(QString currentFolder READ currentFolder NOTIFY currentFolderChanged)
     Q_PROPERTY(QUrl currentFolderUrl READ currentFolderUrl NOTIFY currentFolderChanged)
-    Q_PROPERTY(QString removingPath READ removingPath NOTIFY removingPathChanged)
+    Q_PROPERTY(QString mutatingPath READ mutatingPath NOTIFY mutatingPathChanged)
 
 public:
     explicit GifController(ThumbnailProvider *provider, QObject *parent = nullptr);
@@ -34,7 +34,7 @@ public:
     int progressTotal() const;
     QString currentFolder() const;
     QUrl currentFolderUrl() const;
-    QString removingPath() const;
+    QString mutatingPath() const;
 
     Q_INVOKABLE QString loadFolder(const QString &path);
     Q_INVOKABLE QString loadFolderUrl(const QUrl &url);
@@ -56,10 +56,8 @@ signals:
     void progressChanged();
     void currentFolderChanged();
     void filterCleared();
-    void fileAboutToBeRemoved(const QString &path);
-    void fileRemoved(const QString &path);
-    void fileRenamed(const QString &old_path, const QString &new_path);
-    void removingPathChanged();
+    void fileAboutToChange(const QString &path);
+    void mutatingPathChanged();
 
 private slots:
     void onFilesDiscovered(const QStringList &file_paths);
@@ -73,14 +71,13 @@ private:
     void reloadCurrentFolder();
     void beginFileMutation(const QString &path);
     void finishFileMutation();
-    void setRemovingPath(const QString &path);
+    void setMutatingPath(const QString &path);
 
     GifModel *gif_model = nullptr;
     QSortFilterProxyModel *proxy_model = nullptr;
 
     QString current_folder;
-    QString filter_query;
-    QString removing_path;
+    QString mutating_path;
 
     // At most one task is alive at a time: every new load cancels the previous
     // one, which is why stale worker signals no longer need load IDs.
