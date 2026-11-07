@@ -1,4 +1,6 @@
+#include "clipboard_service.h"
 #include "gif_controller.h"
+#include "path_utils.h"
 #include "settings.h"
 #include "thumbnail_provider.h"
 
@@ -17,6 +19,10 @@ int main(int argc, char *argv[])
 
     qmlRegisterSingletonInstance("gifmanager", 1, 0, "AppSettings",
                                  &SettingsManager::instance());
+    qmlRegisterSingletonInstance("gifmanager", 1, 0, "PathUtils",
+                                 &PathUtils::instance());
+    qmlRegisterSingletonInstance("gifmanager", 1, 0, "ClipboardService",
+                                 &ClipboardService::instance());
     qmlRegisterSingletonInstance("gifmanager", 1, 0, "GifController",
                                  &controller);
 

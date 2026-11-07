@@ -163,7 +163,7 @@ ApplicationWindow {
         id: gridContextMenu
         MenuItem {
             text: qsTr("Copy GIF")
-            onTriggered: GifController.copyToClipboard(root.contextMenuPath)
+            onTriggered: ClipboardService.copyFile(root.contextMenuPath)
         }
         MenuItem {
             text: qsTr("Delete")
@@ -220,7 +220,7 @@ ApplicationWindow {
     Shortcut {
         sequences: ["Ctrl+C"]
         enabled: root.hoveredPath.length > 0 && !searchField.activeFocus
-        onActivated: GifController.copyToClipboard(root.hoveredPath)
+        onActivated: ClipboardService.copyFile(root.hoveredPath)
     }
 
     Shortcut {
@@ -297,18 +297,18 @@ ApplicationWindow {
         id: viewerWindow
         transientParent: root
         filePath: root.viewerPath
-        fileUrl: GifController.localFileUrl(root.viewerPath)
-        fileName: GifController.displayName(root.viewerPath)
+        fileUrl: PathUtils.localFileUrl(root.viewerPath)
+        fileName: PathUtils.displayName(root.viewerPath)
 
         onCloseRequested: root.closeViewer()
-        onCopyRequested: GifController.copyToClipboard(root.viewerPath)
+        onCopyRequested: ClipboardService.copyFile(root.viewerPath)
         onDeleteRequested: root.requestDelete(root.viewerPath)
         onRenameRequested: root.requestRename(root.viewerPath)
     }
 
     ConfirmDeleteDialog {
         id: deleteDialog
-        fileName: GifController.displayName(root.pendingDeletePath)
+        fileName: PathUtils.displayName(root.pendingDeletePath)
 
         onDeleteConfirmed: {
             const error = GifController.deleteFile(root.pendingDeletePath)
@@ -319,7 +319,7 @@ ApplicationWindow {
 
     RenameGifDialog {
         id: renameDialog
-        currentName: GifController.baseNameForPath(root.pendingRenamePath)
+        currentName: PathUtils.baseNameForPath(root.pendingRenamePath)
 
         onRenameSubmitted: function(new_name) {
             const error = GifController.renameFile(root.pendingRenamePath, new_name)

@@ -2,15 +2,11 @@
 #define GIF_CONTROLLER_H
 
 #include <QAbstractItemModel>
-#include <QImage>
 #include <QObject>
-#include <QSize>
-#include <QStringList>
+#include <QString>
 #include <QUrl>
 
-class QSortFilterProxyModel;
-class GifLoaderTask;
-class GifModel;
+class GifLibrary;
 class ThumbnailProvider;
 
 class GifController : public QObject
@@ -40,16 +36,10 @@ public:
     Q_INVOKABLE QString loadFolderUrl(const QUrl &url);
     Q_INVOKABLE QString loadDefaultFolder();
     Q_INVOKABLE void setFilterQuery(const QString &query);
-    Q_INVOKABLE void copyToClipboard(const QString &path);
     Q_INVOKABLE QString deleteFile(const QString &path);
     Q_INVOKABLE QString renameFile(const QString &path, const QString &new_base_name);
     Q_INVOKABLE void applySettings();
     Q_INVOKABLE void shutdown();
-
-    Q_INVOKABLE QString displayName(const QString &path) const;
-    Q_INVOKABLE QString baseNameForPath(const QString &path) const;
-    Q_INVOKABLE QUrl localFileUrl(const QString &path) const;
-    Q_INVOKABLE QString localPathFromUrl(const QUrl &url) const;
 
 signals:
     void loadingChanged();
@@ -59,34 +49,13 @@ signals:
     void fileAboutToChange(const QString &path);
     void mutatingPathChanged();
 
-private slots:
-    void onFilesDiscovered(const QStringList &file_paths);
-    void onGifLoaded(const QString &path, const QImage &image);
-    void onProgress(int current, int total);
-    void onFinished();
-
 private:
-    void startLoading();
-    void stopLoading();
-    void reloadCurrentFolder();
     void beginFileMutation(const QString &path);
     void finishFileMutation();
     void setMutatingPath(const QString &path);
 
-    GifModel *gif_model = nullptr;
-    QSortFilterProxyModel *proxy_model = nullptr;
-
-    QString current_folder;
+    GifLibrary *library = nullptr;
     QString mutating_path;
-
-    // At most one task is alive at a time: every new load cancels the previous
-    // one, which is why stale worker signals no longer need load IDs.
-    GifLoaderTask *current_task = nullptr;
-
-    bool is_loading = false;
-    int progress_current = 0;
-    int progress_total = 0;
-    QSize loaded_thumbnail_size;
 };
 
 #endif // GIF_CONTROLLER_H
