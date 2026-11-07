@@ -27,10 +27,14 @@ include(CTest)
 # tests link against the backend without the application target.
 
 qt_add_library(gifmanager_core STATIC
+    src/core/clipboard_service.h src/core/clipboard_service.cpp
     src/core/gif_controller.h src/core/gif_controller.cpp
+    src/core/gif_file_operations.h src/core/gif_file_operations.cpp
+    src/core/gif_library.h src/core/gif_library.cpp
     src/core/gif_model.h src/core/gif_model.cpp
     src/core/gif_loader_task.h src/core/gif_loader_task.cpp
     src/core/gif_loader_worker.h src/core/gif_loader_worker.cpp
+    src/core/path_utils.h src/core/path_utils.cpp
     src/core/thumbnail_provider.h src/core/thumbnail_provider.cpp
     src/core/settings.h src/core/settings.cpp
 )

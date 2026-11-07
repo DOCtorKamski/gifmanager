@@ -215,7 +215,7 @@ Dialog {
     FolderDialog {
         id: browseDialog
         title: qsTr("Select Default Folder")
-        currentFolder: GifController.localFileUrl(defaultFolderField.text)
-        onAccepted: defaultFolderField.text = GifController.localPathFromUrl(selectedFolder)
+        currentFolder: PathUtils.localFileUrl(defaultFolderField.text)
+        onAccepted: defaultFolderField.text = PathUtils.localPathFromUrl(selectedFolder)
     }
 }
