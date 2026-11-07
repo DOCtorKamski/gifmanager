@@ -49,6 +49,8 @@ private slots:
     void loadsFolderAndEmitsOrderedSignals();
     void explicitFileListSkipsScan();
     void cancelDoesNotEmitFinished();
+    void cancelIsIdempotent();
+    void startAfterCancelDoesNothing();
     void destructorStopsRunningTask();
 };
 
@@ -131,6 +133,50 @@ void TestGifLoaderTask::cancelDoesNotEmitFinished()
 
     QTest::qWait(50);
 
+    QCOMPARE(finished.count(), 0);
+    QCOMPARE(loaded.count(), 0);
+}
+
+void TestGifLoaderTask::cancelIsIdempotent()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    QVERIFY(!writeGifs(folder, 50).isEmpty());
+
+    GifLoaderTask task(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+
+    QSignalSpy finished(&task, &GifLoaderTask::finished);
+    QSignalSpy loaded(&task, &GifLoaderTask::gifLoaded);
+
+    task.start();
+    task.cancel();
+    task.cancel();
+
+    QVERIFY(!task.isRunning());
+
+    QTest::qWait(50);
+
+    QCOMPARE(finished.count(), 0);
+    QCOMPARE(loaded.count(), 0);
+}
+
+void TestGifLoaderTask::startAfterCancelDoesNothing()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    QVERIFY(!writeGifs(folder, 5).isEmpty());
+
+    GifLoaderTask task(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+
+    QSignalSpy finished(&task, &GifLoaderTask::finished);
+    QSignalSpy loaded(&task, &GifLoaderTask::gifLoaded);
+
+    task.cancel();
+    task.start();
+
+    QTest::qWait(50);
+
+    QVERIFY(!task.isRunning());
     QCOMPARE(finished.count(), 0);
     QCOMPARE(loaded.count(), 0);
 }

@@ -25,31 +25,31 @@ void GifLoaderTask::start()
 
     started = true;
 
-    loader_thread = new QThread;
-    worker = new GifLoaderWorker(request);
-    worker->moveToThread(loader_thread);
+    loader_thread = std::make_unique<QThread>();
+    worker = std::make_unique<GifLoaderWorker>(request);
+    worker->moveToThread(loader_thread.get());
 
-    connect(loader_thread, &QThread::started,
-            worker, &GifLoaderWorker::process);
+    connect(loader_thread.get(), &QThread::started,
+            worker.get(), &GifLoaderWorker::process);
 
     // The worker lives on its own thread, so these are queued connections. All
     // worker signals are emitted in order and therefore arrive in order.
-    connect(worker, &GifLoaderWorker::filesDiscovered, this,
+    connect(worker.get(), &GifLoaderWorker::filesDiscovered, this,
             [this](const QStringList &file_paths) {
                 if (!cancelled)
                     emit filesDiscovered(file_paths);
             }, Qt::QueuedConnection);
-    connect(worker, &GifLoaderWorker::gifLoaded, this,
+    connect(worker.get(), &GifLoaderWorker::gifLoaded, this,
             [this](const QString &file_path, const QImage &thumbnail) {
                 if (!cancelled)
                     emit gifLoaded(file_path, thumbnail);
             }, Qt::QueuedConnection);
-    connect(worker, &GifLoaderWorker::progress, this,
+    connect(worker.get(), &GifLoaderWorker::progress, this,
             [this](int current, int total) {
                 if (!cancelled)
                     emit progress(current, total);
             }, Qt::QueuedConnection);
-    connect(worker, &GifLoaderWorker::finished,
+    connect(worker.get(), &GifLoaderWorker::finished,
             this, &GifLoaderTask::onWorkerFinished, Qt::QueuedConnection);
 
     loader_thread->start();
@@ -84,7 +84,7 @@ void GifLoaderTask::onWorkerFinished()
 void GifLoaderTask::teardownThread()
 {
     if (worker)
-        disconnect(worker, nullptr, this, nullptr);
+        disconnect(worker.get(), nullptr, this, nullptr);
 
     if (loader_thread) {
         loader_thread->quit();
@@ -96,9 +96,6 @@ void GifLoaderTask::teardownThread()
     }
 
     // The thread has stopped, so its worker can be destroyed from here.
-    delete worker;
-    worker = nullptr;
-
-    delete loader_thread;
-    loader_thread = nullptr;
+    worker.reset();
+    loader_thread.reset();
 }

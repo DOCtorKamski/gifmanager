@@ -31,7 +31,7 @@ QAbstractItemModel *GifLibrary::proxyModel() const
 
 bool GifLibrary::isLoading() const
 {
-    return is_loading;
+    return !current_task.isNull();
 }
 
 int GifLibrary::progressCurrent() const
@@ -94,48 +94,60 @@ void GifLibrary::setFilterQuery(const QString &query)
 
 void GifLibrary::startLoading()
 {
-    if (current_task)
+    // Defensive: a reentrant handler may have started a load while we were
+    // emitting currentFolderChanged/filterCleared. Normal callers cancel first.
+    if (current_task) {
         stopLoading();
+        if (current_task)
+            return;
+    }
 
     gif_model->resetFiles(QStringList());
 
-    progress_current = 0;
-    progress_total = 0;
-    emit progressChanged();
-
-    is_loading = true;
-    emit loadingChanged();
+    if (current_task)
+        return;
 
     loaded_thumbnail_size = SettingsManager::instance().getThumbnailSize();
 
     const GifLoadRequest request =
         GifLoadRequest::fromFolder(current_folder, loaded_thumbnail_size);
 
-    current_task = new GifLoaderTask(request, this);
-    connect(current_task, &GifLoaderTask::filesDiscovered,
+    GifLoaderTask *task = new GifLoaderTask(request, this);
+    current_task = task;
+    connect(task, &GifLoaderTask::filesDiscovered,
             this, &GifLibrary::onFilesDiscovered);
-    connect(current_task, &GifLoaderTask::gifLoaded,
+    connect(task, &GifLoaderTask::gifLoaded,
             this, &GifLibrary::onGifLoaded);
-    connect(current_task, &GifLoaderTask::progress,
+    connect(task, &GifLoaderTask::progress,
             this, &GifLibrary::onProgress);
-    connect(current_task, &GifLoaderTask::finished,
+    connect(task, &GifLoaderTask::finished,
             this, &GifLibrary::onFinished);
+    connect(task, &GifLoaderTask::finished,
+            task, &QObject::deleteLater);
 
-    current_task->start();
+    task->start();
+
+    setProgress(0, 0);
+
+    // A progressChanged handler may have cancelled or replaced this load.
+    if (current_task.data() == task)
+        emit loadingChanged();
 }
 
 void GifLibrary::stopLoading()
 {
-    if (current_task) {
-        current_task->cancel();
-        delete current_task;
-        current_task = nullptr;
-    }
+    if (!current_task)
+        return;
 
-    if (is_loading) {
-        is_loading = false;
-        emit loadingChanged();
-    }
+    GifLoaderTask *task = current_task;
+    current_task = nullptr;
+
+    // cancel() stops the worker thread synchronously; deleteLater() keeps the
+    // sender alive if stopLoading() was called from one of its signal handlers.
+    task->cancel();
+    task->deleteLater();
+
+    emit loadingChanged();
 }
 
 void GifLibrary::reloadCurrentFolder()
@@ -151,19 +163,17 @@ void GifLibrary::reloadCurrentFolder()
 
 void GifLibrary::onFilesDiscovered(const QStringList &file_paths)
 {
-    if (!is_loading)
+    if (!current_task)
         return;
 
     gif_model->resetFiles(file_paths);
 
-    progress_current = 0;
-    progress_total = file_paths.size();
-    emit progressChanged();
+    setProgress(0, file_paths.size());
 }
 
 void GifLibrary::onGifLoaded(const QString &path, const QImage &image)
 {
-    if (!is_loading)
+    if (!current_task)
         return;
 
     gif_model->setThumbnail(path, image);
@@ -171,31 +181,32 @@ void GifLibrary::onGifLoaded(const QString &path, const QImage &image)
 
 void GifLibrary::onProgress(int current, int total)
 {
-    if (!is_loading)
+    if (!current_task)
         return;
 
-    progress_current = current;
-    progress_total = total;
-    emit progressChanged();
+    setProgress(current, total);
 }
 
 void GifLibrary::onFinished()
 {
-    if (!is_loading)
+    if (!current_task)
         return;
 
     // Clear the task before emitting anything: a handler may start a new load.
-    GifLoaderTask *finished_task = current_task;
     current_task = nullptr;
 
-    progress_current = progress_total;
+    setProgress(progress_total, progress_total);
+
+    // Do not emit a stale "not loading" if progressChanged started a new load.
+    if (!current_task)
+        emit loadingChanged();
+}
+
+void GifLibrary::setProgress(int current, int total)
+{
+    progress_current = current;
+    progress_total = total;
     emit progressChanged();
-
-    is_loading = false;
-    emit loadingChanged();
-
-    if (finished_task)
-        finished_task->deleteLater();
 }
 
 void GifLibrary::applySettings()

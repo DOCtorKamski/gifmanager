@@ -1,16 +1,18 @@
 #ifndef GIF_LIBRARY_H
 #define GIF_LIBRARY_H
 
+#include "gif_loader_task.h"
+
 #include <QAbstractItemModel>
 #include <QImage>
 #include <QObject>
+#include <QPointer>
 #include <QSize>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
 
 class QSortFilterProxyModel;
-class GifLoaderTask;
 class GifModel;
 class ThumbnailProvider;
 
@@ -53,6 +55,7 @@ private slots:
 
 private:
     void startLoading();
+    void setProgress(int current, int total);
 
     GifModel *gif_model = nullptr;
     QSortFilterProxyModel *proxy_model = nullptr;
@@ -60,10 +63,11 @@ private:
     QString current_folder;
 
     // At most one task is alive at a time: every new load cancels the previous
-    // one, which is why stale worker signals no longer need load IDs.
-    GifLoaderTask *current_task = nullptr;
+    // one, which is why stale worker signals no longer need load IDs. The
+    // library observes the task; ownership stays with the QObject parent and
+    // finished/cancelled tasks delete themselves via deleteLater().
+    QPointer<GifLoaderTask> current_task;
 
-    bool is_loading = false;
     int progress_current = 0;
     int progress_total = 0;
     QSize loaded_thumbnail_size;

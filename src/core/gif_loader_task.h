@@ -5,6 +5,8 @@
 
 #include <QObject>
 
+#include <memory>
+
 class QThread;
 
 class GifLoaderTask : public QObject
@@ -29,8 +31,8 @@ private:
     void teardownThread();
 
     GifLoadRequest request;
-    QThread *loader_thread = nullptr;
-    GifLoaderWorker *worker = nullptr;
+    std::unique_ptr<QThread> loader_thread;
+    std::unique_ptr<GifLoaderWorker> worker;
     bool cancelled = false;
     bool started = false;
 };
