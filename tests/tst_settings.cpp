@@ -50,7 +50,7 @@ void TestSettings::defaultsAreReportedWhenStorageIsEmpty()
 {
     SettingsManager &settings = SettingsManager::instance();
 
-    QCOMPARE(settings.getThumbnailSize(), QSize(200, 160));
+    QCOMPARE(settings.getThumbnailSize(), QSize(210, 170));
     QCOMPARE(settings.getColumns(), 3);
     QVERIFY(settings.getDefaultFolder().isEmpty());
     QCOMPARE(settings.getSearchDebounceMs(), 200);
@@ -117,8 +117,8 @@ void TestSettings::defaultValuesCoverEverySetting()
     for (const QString &key : expected)
         QVERIFY2(values.contains(key), qPrintable(key));
 
-    QCOMPARE(values.value(QStringLiteral("thumbnailWidth")).toInt(), 200);
-    QCOMPARE(values.value(QStringLiteral("thumbnailHeight")).toInt(), 160);
+    QCOMPARE(values.value(QStringLiteral("thumbnailWidth")).toInt(), 210);
+    QCOMPARE(values.value(QStringLiteral("thumbnailHeight")).toInt(), 170);
     QCOMPARE(values.value(QStringLiteral("viewerWidth")).toInt(), 800);
     QCOMPARE(values.value(QStringLiteral("viewerHeight")).toInt(), 600);
 }
@@ -135,7 +135,7 @@ void TestSettings::resetToDefaultsRestoresValues()
 
     QCOMPARE(columns_changed.count(), 1);
     QCOMPARE(settings.getColumns(), 3);
-    QCOMPARE(settings.getThumbnailSize(), QSize(200, 160));
+    QCOMPARE(settings.getThumbnailSize(), QSize(210, 170));
     QVERIFY(settings.getDefaultFolder().isEmpty());
 }
 
