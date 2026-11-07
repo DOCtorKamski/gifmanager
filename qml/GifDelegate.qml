@@ -18,7 +18,7 @@ Item {
     readonly property bool onScreen: visible
                                       && (y + height > viewTop)
                                       && (y < viewBottom)
-    readonly property bool removing: GifController.removingPath === filePath
+    readonly property bool mutating: GifController.mutatingPath === filePath
 
     signal openRequested()
     signal contextMenuRequested(real sceneX, real sceneY)
@@ -39,7 +39,7 @@ Item {
         Image {
             anchors.fill: parent
             anchors.margins: 1
-            source: (root.thumbnailReady && !root.removing)
+            source: (root.thumbnailReady && !root.mutating)
                     ? root.thumbnailUrl
                     : ""
             fillMode: Image.PreserveAspectFit
@@ -47,7 +47,7 @@ Item {
             cache: true
             // Hide the static thumbnail once the animation is showing frames;
             // otherwise its first frame shows through transparent pixels.
-            visible: root.thumbnailReady && !root.removing
+            visible: root.thumbnailReady && !root.mutating
                      && animation.status !== AnimatedImage.Ready
         }
 
@@ -55,12 +55,12 @@ Item {
             id: animation
             anchors.fill: parent
             anchors.margins: 1
-            source: (root.onScreen && !root.removing)
+            source: (root.onScreen && !root.mutating)
                     ? root.fileUrl
                     : ""
             // Pause instead of stopping: QMovie::stop() resets playback to the
             // first frame, while setPaused() resumes from the current frame.
-            playing: root.onScreen && !root.removing
+            playing: root.onScreen && !root.mutating
             paused: root.scrolling
             fillMode: AnimatedImage.PreserveAspectFit
             asynchronous: true
