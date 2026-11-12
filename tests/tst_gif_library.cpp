@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QUrl>
 
 namespace {
 
@@ -80,13 +81,13 @@ void TestGifLibrary::loadsFolderAndReportsProgress()
     ThumbnailProvider provider;
     GifLibrary library(&provider);
 
-    const QString error = library.loadFolder(folder.path());
+    const QString error = library.loadFolder(QUrl::fromLocalFile(folder.path()));
     QVERIFY2(error.isEmpty(), qPrintable(error));
     QVERIFY(library.isLoading());
 
     QTRY_VERIFY_WITH_TIMEOUT(!library.isLoading(), 10000);
 
-    QCOMPARE(library.currentFolder(), folder.path());
+    QCOMPARE(library.currentFolderUrl(), QUrl::fromLocalFile(folder.path()));
     QCOMPARE(library.progressCurrent(), 3);
     QCOMPARE(library.progressTotal(), 3);
     QCOMPARE(library.proxyModel()->rowCount(), 3);
@@ -109,7 +110,7 @@ void TestGifLibrary::stopLoadingFromLoadingChangedLeavesLibraryIdle()
         }
     });
 
-    const QString error = library.loadFolder(folder.path());
+    const QString error = library.loadFolder(QUrl::fromLocalFile(folder.path()));
     QVERIFY2(error.isEmpty(), qPrintable(error));
     QVERIFY(stopped);
     QVERIFY(!library.isLoading());
@@ -134,18 +135,20 @@ void TestGifLibrary::reentrantLoadFromLoadingChangedKeepsLatestFolder()
     connect(&library, &GifLibrary::loadingChanged, &library, [&] {
         if (!switched && library.isLoading()) {
             switched = true;
-            const QString error = library.loadFolder(second_folder.path());
+            const QString error =
+                library.loadFolder(QUrl::fromLocalFile(second_folder.path()));
             QVERIFY2(error.isEmpty(), qPrintable(error));
         }
     });
 
-    const QString error = library.loadFolder(first_folder.path());
+    const QString error = library.loadFolder(QUrl::fromLocalFile(first_folder.path()));
     QVERIFY2(error.isEmpty(), qPrintable(error));
     QVERIFY(switched);
 
     QTRY_VERIFY_WITH_TIMEOUT(!library.isLoading(), 10000);
 
-    QCOMPARE(library.currentFolder(), second_folder.path());
+    QCOMPARE(library.currentFolderUrl(),
+             QUrl::fromLocalFile(second_folder.path()));
     QCOMPARE(library.proxyModel()->rowCount(), 3);
 }
 
@@ -165,18 +168,20 @@ void TestGifLibrary::reentrantLoadFromProgressChangedKeepsLatestFolder()
     connect(&library, &GifLibrary::progressChanged, &library, [&] {
         if (!switched && library.isLoading()) {
             switched = true;
-            const QString error = library.loadFolder(second_folder.path());
+            const QString error =
+                library.loadFolder(QUrl::fromLocalFile(second_folder.path()));
             QVERIFY2(error.isEmpty(), qPrintable(error));
         }
     });
 
-    const QString error = library.loadFolder(first_folder.path());
+    const QString error = library.loadFolder(QUrl::fromLocalFile(first_folder.path()));
     QVERIFY2(error.isEmpty(), qPrintable(error));
     QVERIFY(switched);
 
     QTRY_VERIFY_WITH_TIMEOUT(!library.isLoading(), 10000);
 
-    QCOMPARE(library.currentFolder(), second_folder.path());
+    QCOMPARE(library.currentFolderUrl(),
+             QUrl::fromLocalFile(second_folder.path()));
     QCOMPARE(library.proxyModel()->rowCount(), 3);
 }
 
@@ -192,12 +197,13 @@ void TestGifLibrary::loadFolderReplacesPreviousLoad()
     ThumbnailProvider provider;
     GifLibrary library(&provider);
 
-    QVERIFY(library.loadFolder(first_folder.path()).isEmpty());
-    QVERIFY(library.loadFolder(second_folder.path()).isEmpty());
+    QVERIFY(library.loadFolder(QUrl::fromLocalFile(first_folder.path())).isEmpty());
+    QVERIFY(library.loadFolder(QUrl::fromLocalFile(second_folder.path())).isEmpty());
 
     QTRY_VERIFY_WITH_TIMEOUT(!library.isLoading(), 10000);
 
-    QCOMPARE(library.currentFolder(), second_folder.path());
+    QCOMPARE(library.currentFolderUrl(),
+             QUrl::fromLocalFile(second_folder.path()));
     QCOMPARE(library.proxyModel()->rowCount(), 2);
 }
 
@@ -210,7 +216,7 @@ void TestGifLibrary::shutdownWhileLoadingStopsTask()
     ThumbnailProvider provider;
     GifLibrary library(&provider);
 
-    QVERIFY(library.loadFolder(folder.path()).isEmpty());
+    QVERIFY(library.loadFolder(QUrl::fromLocalFile(folder.path())).isEmpty());
     QVERIFY(library.isLoading());
 
     library.shutdown();

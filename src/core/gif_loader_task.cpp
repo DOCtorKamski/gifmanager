@@ -1,6 +1,7 @@
 #include "gif_loader_task.h"
 
 #include <QDebug>
+#include <QMetaType>
 #include <QThread>
 
 namespace {
@@ -11,6 +12,8 @@ GifLoaderTask::GifLoaderTask(const GifLoadRequest &request_, QObject *parent)
     : QObject(parent)
     , request(request_)
 {
+    qRegisterMetaType<GifItem>("GifItem");
+    qRegisterMetaType<QList<GifItem>>("QList<GifItem>");
 }
 
 GifLoaderTask::~GifLoaderTask()
@@ -35,14 +38,14 @@ void GifLoaderTask::start()
     // The worker lives on its own thread, so these are queued connections. All
     // worker signals are emitted in order and therefore arrive in order.
     connect(worker.get(), &GifLoaderWorker::filesDiscovered, this,
-            [this](const QStringList &file_paths) {
+            [this](const QList<GifItem> &items) {
                 if (!cancelled)
-                    emit filesDiscovered(file_paths);
+                    emit filesDiscovered(items);
             }, Qt::QueuedConnection);
     connect(worker.get(), &GifLoaderWorker::gifLoaded, this,
-            [this](const QString &file_path, const QImage &thumbnail) {
+            [this](const QUrl &url, const QImage &thumbnail) {
                 if (!cancelled)
-                    emit gifLoaded(file_path, thumbnail);
+                    emit gifLoaded(url, thumbnail);
             }, Qt::QueuedConnection);
     connect(worker.get(), &GifLoaderWorker::progress, this,
             [this](int current, int total) {

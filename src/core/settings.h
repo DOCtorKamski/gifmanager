@@ -7,6 +7,7 @@
 #include <QSettings>
 #include <QSize>
 #include <QString>
+#include <QUrl>
 #include <QVariant>
 #include <QVariantMap>
 
@@ -25,7 +26,7 @@ class SettingsManager : public QObject
     Q_PROPERTY(int thumbnailHeight READ thumbnailHeight WRITE setThumbnailHeight
                NOTIFY thumbnailSizeChanged)
     Q_PROPERTY(int columns READ getColumns WRITE setColumns NOTIFY columnsChanged)
-    Q_PROPERTY(QString defaultFolder READ getDefaultFolder WRITE setDefaultFolder
+    Q_PROPERTY(QUrl defaultFolderUrl READ getDefaultFolderUrl WRITE setDefaultFolderUrl
                NOTIFY defaultFolderChanged)
     Q_PROPERTY(int searchDebounceMs READ getSearchDebounceMs WRITE setSearchDebounceMs
                NOTIFY searchDebounceMsChanged)
@@ -67,8 +68,8 @@ public:
     int getColumns() const;
     void setColumns(int columns);
 
-    QString getDefaultFolder() const;
-    void setDefaultFolder(const QString &path);
+    QUrl getDefaultFolderUrl() const;
+    void setDefaultFolderUrl(const QUrl &url);
 
     int getSearchDebounceMs() const;
     void setSearchDebounceMs(int ms);

@@ -4,6 +4,7 @@
 #include "gif_loader_worker.h"
 
 #include <QObject>
+#include <QUrl>
 
 #include <memory>
 
@@ -21,8 +22,8 @@ public:
     bool isRunning() const;
 
 signals:
-    void filesDiscovered(const QStringList &file_paths);
-    void gifLoaded(const QString &file_path, const QImage &thumbnail);
+    void filesDiscovered(const QList<GifItem> &items);
+    void gifLoaded(const QUrl &url, const QImage &thumbnail);
     void progress(int current, int total);
     void finished();
 

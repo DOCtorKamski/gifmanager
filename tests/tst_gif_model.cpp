@@ -1,9 +1,11 @@
 #include <QtTest>
 
+#include "gif_item.h"
 #include "gif_model.h"
 #include "thumbnail_provider.h"
 
 #include <QColor>
+#include <QFileInfo>
 #include <QImage>
 #include <QUrl>
 
@@ -24,12 +26,18 @@ private slots:
     void resetFilesClearsProvider();
 
 private:
+    static GifItem makeItem(const QString &path);
     static QString imageIdFromUrl(const QUrl &url);
     static QImage solidImage(int width, int height, const QColor &color);
 
     ThumbnailProvider provider;
     GifModel model{&provider};
 };
+
+GifItem TestGifModel::makeItem(const QString &path)
+{
+    return {QUrl::fromLocalFile(path), QFileInfo(path).fileName()};
+}
 
 QString TestGifModel::imageIdFromUrl(const QUrl &url)
 {
@@ -49,7 +57,6 @@ void TestGifModel::roleNamesMatchTheQmlContract()
 {
     const QHash<int, QByteArray> roles = model.roleNames();
 
-    QCOMPARE(roles.value(GifModel::FilePathRole), QByteArray("filePath"));
     QCOMPARE(roles.value(GifModel::FileNameRole), QByteArray("fileName"));
     QCOMPARE(roles.value(GifModel::FileUrlRole), QByteArray("fileUrl"));
     QCOMPARE(roles.value(GifModel::ThumbnailUrlRole), QByteArray("thumbnailUrl"));
@@ -58,30 +65,29 @@ void TestGifModel::roleNamesMatchTheQmlContract()
 
 void TestGifModel::resetFilesPopulatesRows()
 {
-    model.resetFiles({QStringLiteral("/gifs/b.gif"), QStringLiteral("/gifs/a.gif")});
+    model.resetFiles({makeItem(QStringLiteral("/gifs/b.gif")),
+                      makeItem(QStringLiteral("/gifs/a.gif"))});
 
     QCOMPARE(model.rowCount(), 2);
-    QCOMPARE(model.data(model.index(0), GifModel::FilePathRole).toString(),
-             QStringLiteral("/gifs/b.gif"));
-    QCOMPARE(model.data(model.index(0), GifModel::FileNameRole).toString(),
-             QStringLiteral("b.gif"));
     QCOMPARE(model.data(model.index(0), GifModel::FileUrlRole).toUrl(),
              QUrl::fromLocalFile(QStringLiteral("/gifs/b.gif")));
+    QCOMPARE(model.data(model.index(0), GifModel::FileNameRole).toString(),
+             QStringLiteral("b.gif"));
     QCOMPARE(model.data(model.index(1), GifModel::FileNameRole).toString(),
              QStringLiteral("a.gif"));
 }
 
 void TestGifModel::invalidIndexReturnsNothing()
 {
-    model.resetFiles({QStringLiteral("/gifs/a.gif")});
+    model.resetFiles({makeItem(QStringLiteral("/gifs/a.gif"))});
 
-    QVERIFY(!model.data(QModelIndex(), GifModel::FilePathRole).isValid());
-    QVERIFY(!model.data(model.index(5), GifModel::FilePathRole).isValid());
+    QVERIFY(!model.data(QModelIndex(), GifModel::FileUrlRole).isValid());
+    QVERIFY(!model.data(model.index(5), GifModel::FileUrlRole).isValid());
 }
 
 void TestGifModel::thumbnailStartsHidden()
 {
-    model.resetFiles({QStringLiteral("/gifs/a.gif")});
+    model.resetFiles({makeItem(QStringLiteral("/gifs/a.gif"))});
 
     QVERIFY(!model.data(model.index(0), GifModel::ThumbnailReadyRole).toBool());
     QVERIFY(!model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl().isValid());
@@ -90,19 +96,22 @@ void TestGifModel::thumbnailStartsHidden()
 void TestGifModel::setThumbnailPublishesImage()
 {
     const QString path = QStringLiteral("/gifs/a.gif");
-    model.resetFiles({path});
+    const QUrl url = QUrl::fromLocalFile(path);
+    model.resetFiles({makeItem(path)});
 
     QSignalSpy data_changed(&model, &QAbstractItemModel::dataChanged);
-    model.setThumbnail(path, solidImage(4, 3, Qt::red));
+    model.setThumbnail(url, solidImage(4, 3, Qt::red));
 
     QCOMPARE(data_changed.count(), 1);
     QVERIFY(model.data(model.index(0), GifModel::ThumbnailReadyRole).toBool());
 
-    const QUrl url = model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl();
-    QVERIFY(url.toString().startsWith(QStringLiteral("image://gifthumb/")));
+    const QUrl thumbnail_url =
+        model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl();
+    QVERIFY(thumbnail_url.toString().startsWith(QStringLiteral("image://gifthumb/")));
 
     QSize reported_size;
-    const QImage image = provider.requestImage(imageIdFromUrl(url), &reported_size, QSize());
+    const QImage image = provider.requestImage(imageIdFromUrl(thumbnail_url),
+                                               &reported_size, QSize());
     QCOMPARE(image.size(), QSize(4, 3));
     QCOMPARE(reported_size, QSize(4, 3));
     QCOMPARE(image.pixelColor(0, 0), QColor(Qt::red));
@@ -111,13 +120,14 @@ void TestGifModel::setThumbnailPublishesImage()
 void TestGifModel::thumbnailRevisionChangesUrl()
 {
     const QString path = QStringLiteral("/gifs/a.gif");
-    model.resetFiles({path});
+    const QUrl url = QUrl::fromLocalFile(path);
+    model.resetFiles({makeItem(path)});
 
-    model.setThumbnail(path, solidImage(4, 3, Qt::red));
+    model.setThumbnail(url, solidImage(4, 3, Qt::red));
     const QString first_id = imageIdFromUrl(
         model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl());
 
-    model.setThumbnail(path, solidImage(4, 3, Qt::blue));
+    model.setThumbnail(url, solidImage(4, 3, Qt::blue));
     const QString second_id = imageIdFromUrl(
         model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl());
 
@@ -133,14 +143,15 @@ void TestGifModel::thumbnailRevisionChangesUrl()
 void TestGifModel::thumbnailIdChangesAcrossResets()
 {
     const QString path = QStringLiteral("/gifs/a.gif");
+    const QUrl url = QUrl::fromLocalFile(path);
 
-    model.resetFiles({path});
-    model.setThumbnail(path, solidImage(2, 2, Qt::green));
+    model.resetFiles({makeItem(path)});
+    model.setThumbnail(url, solidImage(2, 2, Qt::green));
     const QString first_id = imageIdFromUrl(
         model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl());
 
-    model.resetFiles({path});
-    model.setThumbnail(path, solidImage(2, 2, Qt::green));
+    model.resetFiles({makeItem(path)});
+    model.setThumbnail(url, solidImage(2, 2, Qt::green));
     const QString second_id = imageIdFromUrl(
         model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl());
 
@@ -152,39 +163,44 @@ void TestGifModel::thumbnailIdChangesAcrossResets()
 
 void TestGifModel::removeFileShrinksModel()
 {
-    model.resetFiles({QStringLiteral("/gifs/a.gif"), QStringLiteral("/gifs/b.gif")});
-    model.setThumbnail(QStringLiteral("/gifs/b.gif"), solidImage(2, 2, Qt::green));
+    const QString first_path = QStringLiteral("/gifs/a.gif");
+    const QString second_path = QStringLiteral("/gifs/b.gif");
+    const QUrl first = QUrl::fromLocalFile(first_path);
+    const QUrl second = QUrl::fromLocalFile(second_path);
 
-    QVERIFY(model.removeFile(QStringLiteral("/gifs/a.gif")));
+    model.resetFiles({makeItem(first_path), makeItem(second_path)});
+    model.setThumbnail(second, solidImage(2, 2, Qt::green));
+
+    QVERIFY(model.removeFile(first));
     QCOMPARE(model.rowCount(), 1);
-    QCOMPARE(model.data(model.index(0), GifModel::FilePathRole).toString(),
-             QStringLiteral("/gifs/b.gif"));
+    QCOMPARE(model.data(model.index(0), GifModel::FileUrlRole).toUrl(), second);
     QVERIFY(model.data(model.index(0), GifModel::ThumbnailReadyRole).toBool());
 
-    // The path index must have been rebuilt after the removal.
-    QVERIFY(model.removeFile(QStringLiteral("/gifs/b.gif")));
+    // The url index must have been rebuilt after the removal.
+    QVERIFY(model.removeFile(second));
     QCOMPARE(model.rowCount(), 0);
 }
 
 void TestGifModel::removeUnknownFileReturnsFalse()
 {
-    model.resetFiles({QStringLiteral("/gifs/a.gif")});
+    model.resetFiles({makeItem(QStringLiteral("/gifs/a.gif"))});
 
-    QVERIFY(!model.removeFile(QStringLiteral("/gifs/missing.gif")));
+    QVERIFY(!model.removeFile(QUrl::fromLocalFile(QStringLiteral("/gifs/missing.gif"))));
     QCOMPARE(model.rowCount(), 1);
 }
 
 void TestGifModel::resetFilesClearsProvider()
 {
     const QString first_path = QStringLiteral("/gifs/a.gif");
-    model.resetFiles({first_path});
-    model.setThumbnail(first_path, solidImage(2, 2, Qt::green));
+    const QUrl first_url = QUrl::fromLocalFile(first_path);
+    model.resetFiles({makeItem(first_path)});
+    model.setThumbnail(first_url, solidImage(2, 2, Qt::green));
 
     const QString old_id = imageIdFromUrl(
         model.data(model.index(0), GifModel::ThumbnailUrlRole).toUrl());
     QVERIFY(!old_id.isEmpty());
 
-    model.resetFiles({QStringLiteral("/gifs/c.gif")});
+    model.resetFiles({makeItem(QStringLiteral("/gifs/c.gif"))});
 
     QVERIFY(provider.requestImage(old_id, nullptr, QSize()).isNull());
 }

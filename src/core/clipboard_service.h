@@ -2,7 +2,7 @@
 #define CLIPBOARD_SERVICE_H
 
 #include <QObject>
-#include <QString>
+#include <QUrl>
 
 class ClipboardService : public QObject
 {
@@ -10,7 +10,7 @@ class ClipboardService : public QObject
 public:
     static ClipboardService &instance();
 
-    Q_INVOKABLE void copyFile(const QString &path);
+    Q_INVOKABLE void copyFile(const QUrl &url);
 
 private:
     explicit ClipboardService(QObject *parent = nullptr);

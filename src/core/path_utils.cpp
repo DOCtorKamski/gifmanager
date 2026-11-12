@@ -13,22 +13,17 @@ PathUtils::PathUtils(QObject *parent)
 {
 }
 
-QString PathUtils::displayName(const QString &path) const
-{
-    return QFileInfo(path).fileName();
-}
-
-QString PathUtils::baseNameForPath(const QString &path) const
-{
-    return QFileInfo(path).baseName();
-}
-
-QUrl PathUtils::localFileUrl(const QString &path) const
+QUrl PathUtils::fromLocalPath(const QString &path) const
 {
     return path.isEmpty() ? QUrl() : QUrl::fromLocalFile(path);
 }
 
-QString PathUtils::localPathFromUrl(const QUrl &url) const
+QString PathUtils::toLocalPath(const QUrl &url) const
 {
     return url.isLocalFile() ? url.toLocalFile() : url.toString();
+}
+
+QString PathUtils::baseName(const QString &fileName) const
+{
+    return QFileInfo(fileName).baseName();
 }

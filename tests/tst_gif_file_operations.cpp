@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QTemporaryDir>
+#include <QUrl>
 
 namespace {
 
@@ -15,6 +16,11 @@ bool writeFile(const QString &path, const QByteArray &contents)
     if (!file.open(QIODevice::WriteOnly))
         return false;
     return file.write(contents) == contents.size();
+}
+
+QUrl localUrl(const QString &path)
+{
+    return QUrl::fromLocalFile(path);
 }
 
 } // namespace
@@ -40,7 +46,7 @@ void TestGifFileOperations::validateMissingFileReturnsError()
     QVERIFY(folder.isValid());
 
     const QString error = GifFileOperations::validateFile(
-        folder.filePath(QStringLiteral("missing.gif")));
+        localUrl(folder.filePath(QStringLiteral("missing.gif"))));
     QVERIFY(!error.isEmpty());
 }
 
@@ -52,8 +58,8 @@ void TestGifFileOperations::removeFileDeletesExistingFile()
     const QString path = folder.filePath(QStringLiteral("photo.gif"));
     QVERIFY(writeFile(path, "data"));
 
-    QVERIFY(GifFileOperations::validateFile(path).isEmpty());
-    QVERIFY(GifFileOperations::removeFile(path).isEmpty());
+    QVERIFY(GifFileOperations::validateFile(localUrl(path)).isEmpty());
+    QVERIFY(GifFileOperations::removeFile(localUrl(path)).isEmpty());
     QVERIFY(!QFile::exists(path));
 }
 
@@ -66,11 +72,11 @@ void TestGifFileOperations::planRenamePreservesExtension()
     QVERIFY(writeFile(path, "data"));
 
     const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(path, QStringLiteral("renamed"));
+        GifFileOperations::planRename(localUrl(path), QStringLiteral("renamed"));
 
     QVERIFY2(plan.error.isEmpty(), qPrintable(plan.error));
     QVERIFY(plan.changed);
-    QCOMPARE(plan.new_path, folder.filePath(QStringLiteral("renamed.gif")));
+    QCOMPARE(plan.new_url, localUrl(folder.filePath(QStringLiteral("renamed.gif"))));
 }
 
 void TestGifFileOperations::planRenameSameNameIsNoOp()
@@ -82,11 +88,11 @@ void TestGifFileOperations::planRenameSameNameIsNoOp()
     QVERIFY(writeFile(path, "data"));
 
     const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(path, QStringLiteral("photo"));
+        GifFileOperations::planRename(localUrl(path), QStringLiteral("photo"));
 
     QVERIFY(plan.error.isEmpty());
     QVERIFY(!plan.changed);
-    QVERIFY(plan.new_path.isEmpty());
+    QVERIFY(plan.new_url.isEmpty());
 }
 
 void TestGifFileOperations::planRenameRejectsEmptyName()
@@ -98,7 +104,7 @@ void TestGifFileOperations::planRenameRejectsEmptyName()
     QVERIFY(writeFile(path, "data"));
 
     const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(path, QStringLiteral("   "));
+        GifFileOperations::planRename(localUrl(path), QStringLiteral("   "));
 
     QVERIFY(!plan.error.isEmpty());
     QVERIFY(!plan.changed);
@@ -113,7 +119,7 @@ void TestGifFileOperations::planRenameRejectsInvalidCharacters()
     QVERIFY(writeFile(path, "data"));
 
     const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(path, QStringLiteral("bad/name"));
+        GifFileOperations::planRename(localUrl(path), QStringLiteral("bad/name"));
 
     QVERIFY(!plan.error.isEmpty());
     QVERIFY(!plan.changed);
@@ -130,7 +136,7 @@ void TestGifFileOperations::planRenameRejectsExistingTarget()
     QVERIFY(writeFile(existing, "data"));
 
     const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(path, QStringLiteral("existing"));
+        GifFileOperations::planRename(localUrl(path), QStringLiteral("existing"));
 
     QVERIFY(!plan.error.isEmpty());
     QVERIFY(!plan.changed);
@@ -145,7 +151,8 @@ void TestGifFileOperations::renameFileMovesFile()
     const QString new_path = folder.filePath(QStringLiteral("renamed.gif"));
     QVERIFY(writeFile(path, "data"));
 
-    QVERIFY(GifFileOperations::renameFile(path, new_path).isEmpty());
+    QVERIFY(GifFileOperations::renameFile(localUrl(path),
+                                          localUrl(new_path)).isEmpty());
     QVERIFY(!QFile::exists(path));
     QVERIFY(QFile::exists(new_path));
 }

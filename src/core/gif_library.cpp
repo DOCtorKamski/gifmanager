@@ -1,17 +1,36 @@
 #include "gif_library.h"
 
+#include "desktop_gif_storage.h"
 #include "gif_loader_task.h"
 #include "gif_model.h"
 #include "settings.h"
 #include "thumbnail_provider.h"
 
-#include <QDir>
 #include <QSortFilterProxyModel>
 
+#include <utility>
+
+namespace {
+
+QString displayLocation(const QUrl &url)
+{
+    return url.isLocalFile() ? url.toLocalFile() : url.toString();
+}
+
+} // namespace
+
 GifLibrary::GifLibrary(ThumbnailProvider *provider, QObject *parent)
+    : GifLibrary(provider, std::make_shared<DesktopGifStorage>(), parent)
+{
+}
+
+GifLibrary::GifLibrary(ThumbnailProvider *provider,
+                       std::shared_ptr<GifStorage> storage_,
+                       QObject *parent)
     : QObject(parent)
     , gif_model(new GifModel(provider, this))
     , proxy_model(new QSortFilterProxyModel(this))
+    , storage(std::move(storage_))
 {
     proxy_model->setSourceModel(gif_model);
     proxy_model->setFilterRole(GifModel::FileNameRole);
@@ -44,24 +63,19 @@ int GifLibrary::progressTotal() const
     return progress_total;
 }
 
-QString GifLibrary::currentFolder() const
-{
-    return current_folder;
-}
-
 QUrl GifLibrary::currentFolderUrl() const
 {
-    return current_folder.isEmpty() ? QUrl() : QUrl::fromLocalFile(current_folder);
+    return current_container;
 }
 
-QString GifLibrary::loadFolder(const QString &path)
+QString GifLibrary::loadFolder(const QUrl &container)
 {
-    if (path.isEmpty() || !QDir(path).exists())
-        return tr("Folder not found: %1").arg(path);
+    if (container.isEmpty() || !storage->exists(container))
+        return tr("Folder not found: %1").arg(displayLocation(container));
 
     stopLoading();
 
-    current_folder = path;
+    current_container = container;
     emit currentFolderChanged();
 
     proxy_model->setFilterFixedString(QString());
@@ -73,16 +87,16 @@ QString GifLibrary::loadFolder(const QString &path)
 
 QString GifLibrary::loadFolderUrl(const QUrl &url)
 {
-    return loadFolder(url.isLocalFile() ? url.toLocalFile() : url.toString());
+    return loadFolder(url);
 }
 
 QString GifLibrary::loadDefaultFolder()
 {
-    const QString dir = SettingsManager::instance().getDefaultFolder();
+    const QUrl dir = SettingsManager::instance().getDefaultFolderUrl();
     if (dir.isEmpty())
         return tr("No default folder is set. Please configure it in Settings.");
-    if (!QDir(dir).exists())
-        return tr("The default folder '%1' does not exist.").arg(dir);
+    if (!storage->exists(dir))
+        return tr("The default folder '%1' does not exist.").arg(displayLocation(dir));
 
     return loadFolder(dir);
 }
@@ -102,7 +116,7 @@ void GifLibrary::startLoading()
             return;
     }
 
-    gif_model->resetFiles(QStringList());
+    gif_model->resetFiles(QList<GifItem>());
 
     if (current_task)
         return;
@@ -110,7 +124,8 @@ void GifLibrary::startLoading()
     loaded_thumbnail_size = SettingsManager::instance().getThumbnailSize();
 
     const GifLoadRequest request =
-        GifLoadRequest::fromFolder(current_folder, loaded_thumbnail_size);
+        GifLoadRequest::fromContainer(current_container, loaded_thumbnail_size,
+                                      storage);
 
     GifLoaderTask *task = new GifLoaderTask(request, this);
     current_task = task;
@@ -152,7 +167,7 @@ void GifLibrary::stopLoading()
 
 void GifLibrary::reloadCurrentFolder()
 {
-    if (current_folder.isEmpty())
+    if (current_container.isEmpty())
         return;
 
     // Always rescan so files added or removed outside the application are
@@ -161,22 +176,22 @@ void GifLibrary::reloadCurrentFolder()
     startLoading();
 }
 
-void GifLibrary::onFilesDiscovered(const QStringList &file_paths)
+void GifLibrary::onFilesDiscovered(const QList<GifItem> &items)
 {
     if (!current_task)
         return;
 
-    gif_model->resetFiles(file_paths);
+    gif_model->resetFiles(items);
 
-    setProgress(0, file_paths.size());
+    setProgress(0, items.size());
 }
 
-void GifLibrary::onGifLoaded(const QString &path, const QImage &image)
+void GifLibrary::onGifLoaded(const QUrl &url, const QImage &image)
 {
     if (!current_task)
         return;
 
-    gif_model->setThumbnail(path, image);
+    gif_model->setThumbnail(url, image);
 }
 
 void GifLibrary::onProgress(int current, int total)
@@ -216,9 +231,9 @@ void GifLibrary::applySettings()
         reloadCurrentFolder();
 }
 
-void GifLibrary::removeModelEntry(const QString &path)
+void GifLibrary::removeModelEntry(const QUrl &url)
 {
-    gif_model->removeFile(path);
+    gif_model->removeFile(url);
 }
 
 void GifLibrary::shutdown()

@@ -12,11 +12,15 @@ ApplicationWindow {
     visible: true
     title: qsTr("Gif Manager")
 
-    property string viewerPath: ""
-    property string hoveredPath: ""
-    property string pendingDeletePath: ""
-    property string pendingRenamePath: ""
-    property string contextMenuPath: ""
+    property url viewerUrl
+    property string viewerFileName: ""
+    property url hoveredUrl
+    property url pendingDeleteUrl
+    property string pendingDeleteFileName: ""
+    property url pendingRenameUrl
+    property string pendingRenameFileName: ""
+    property url contextMenuUrl
+    property string contextMenuFileName: ""
 
     Component.onCompleted: {
         if (AppSettings.hasWindowGeometry) {
@@ -143,17 +147,18 @@ ApplicationWindow {
             thumbWidth: AppSettings.thumbnailWidth
             thumbHeight: AppSettings.thumbnailHeight
 
-            onOpenRequested: root.toggleViewer(filePath)
+            onOpenRequested: root.toggleViewer(fileUrl, fileName)
             onContextMenuRequested: function(sceneX, sceneY) {
-                root.contextMenuPath = filePath
+                root.contextMenuUrl = fileUrl
+                root.contextMenuFileName = fileName
                 const p = grid.mapFromItem(null, sceneX, sceneY)
                 gridContextMenu.popup(grid, p.x, p.y)
             }
             onHoverChanged: function(hovered) {
                 if (hovered) {
-                    root.hoveredPath = filePath
-                } else if (root.hoveredPath === filePath) {
-                    root.hoveredPath = ""
+                    root.hoveredUrl = fileUrl
+                } else if (root.hoveredUrl.toString() === fileUrl.toString()) {
+                    root.hoveredUrl = ""
                 }
             }
         }
@@ -163,22 +168,24 @@ ApplicationWindow {
         id: gridContextMenu
         MenuItem {
             text: qsTr("Copy GIF")
-            onTriggered: ClipboardService.copyFile(root.contextMenuPath)
+            onTriggered: ClipboardService.copyFile(root.contextMenuUrl)
         }
         MenuItem {
             text: qsTr("Delete")
-            onTriggered: root.requestDelete(root.contextMenuPath)
+            onTriggered: root.requestDelete(root.contextMenuUrl,
+                                            root.contextMenuFileName)
         }
         MenuItem {
             text: qsTr("Rename")
-            onTriggered: root.requestRename(root.contextMenuPath)
+            onTriggered: root.requestRename(root.contextMenuUrl,
+                                            root.contextMenuFileName)
         }
     }
 
     Label {
         anchors.centerIn: parent
         visible: grid.count === 0 && !GifController.loading
-        text: GifController.currentFolder.length > 0
+        text: GifController.hasFolder
               ? qsTr("No GIFs found")
               : qsTr("Choose a folder with GIFs")
         color: "#777777"
@@ -210,7 +217,7 @@ ApplicationWindow {
         interval: AppSettings.searchDebounceMs
         repeat: false
         onTriggered: {
-            root.hoveredPath = ""
+            root.hoveredUrl = ""
             GifController.setFilterQuery(searchField.text)
             grid.positionViewAtBeginning()
             viewportTimer.restart()
@@ -219,8 +226,8 @@ ApplicationWindow {
 
     Shortcut {
         sequences: ["Ctrl+C"]
-        enabled: root.hoveredPath.length > 0 && !searchField.activeFocus
-        onActivated: ClipboardService.copyFile(root.hoveredPath)
+        enabled: root.hoveredUrl.toString().length > 0 && !searchField.activeFocus
+        onActivated: ClipboardService.copyFile(root.hoveredUrl)
     }
 
     Shortcut {
@@ -231,27 +238,31 @@ ApplicationWindow {
         }
     }
 
-    function toggleViewer(path) {
-        if (viewerPath === path) {
+    function toggleViewer(url, name) {
+        if (root.viewerUrl.toString() === url.toString()) {
             closeViewer()
         } else {
-            viewerPath = path
+            root.viewerUrl = url
+            root.viewerFileName = name
             viewerWindow.show()
         }
     }
 
     function closeViewer() {
-        viewerPath = ""
+        root.viewerUrl = ""
+        root.viewerFileName = ""
         viewerWindow.hide()
     }
 
-    function requestDelete(path) {
-        pendingDeletePath = path
+    function requestDelete(url, name) {
+        root.pendingDeleteUrl = url
+        root.pendingDeleteFileName = name
         deleteDialog.open()
     }
 
-    function requestRename(path) {
-        pendingRenamePath = path
+    function requestRename(url, name) {
+        root.pendingRenameUrl = url
+        root.pendingRenameFileName = name
         renameDialog.open()
     }
 
@@ -266,13 +277,13 @@ ApplicationWindow {
         function onFilterCleared() {
             searchField.text = ""
             searchTimer.stop()
-            root.hoveredPath = ""
+            root.hoveredUrl = ""
         }
 
-        function onFileAboutToChange(path) {
-            if (root.hoveredPath === path)
-                root.hoveredPath = ""
-            if (root.viewerPath === path)
+        function onFileAboutToChange(url) {
+            if (root.hoveredUrl.toString() === url.toString())
+                root.hoveredUrl = ""
+            if (root.viewerUrl.toString() === url.toString())
                 root.closeViewer()
         }
     }
@@ -296,22 +307,21 @@ ApplicationWindow {
     GifViewerWindow {
         id: viewerWindow
         transientParent: root
-        filePath: root.viewerPath
-        fileUrl: PathUtils.localFileUrl(root.viewerPath)
-        fileName: PathUtils.displayName(root.viewerPath)
+        fileUrl: root.viewerUrl
+        fileName: root.viewerFileName
 
         onCloseRequested: root.closeViewer()
-        onCopyRequested: ClipboardService.copyFile(root.viewerPath)
-        onDeleteRequested: root.requestDelete(root.viewerPath)
-        onRenameRequested: root.requestRename(root.viewerPath)
+        onCopyRequested: ClipboardService.copyFile(root.viewerUrl)
+        onDeleteRequested: root.requestDelete(root.viewerUrl, root.viewerFileName)
+        onRenameRequested: root.requestRename(root.viewerUrl, root.viewerFileName)
     }
 
     ConfirmDeleteDialog {
         id: deleteDialog
-        fileName: PathUtils.displayName(root.pendingDeletePath)
+        fileName: root.pendingDeleteFileName
 
         onDeleteConfirmed: {
-            const error = GifController.deleteFile(root.pendingDeletePath)
+            const error = GifController.deleteFile(root.pendingDeleteUrl)
             if (error.length > 0)
                 root.showError(error)
         }
@@ -319,10 +329,10 @@ ApplicationWindow {
 
     RenameGifDialog {
         id: renameDialog
-        currentName: PathUtils.baseNameForPath(root.pendingRenamePath)
+        currentName: PathUtils.baseName(root.pendingRenameFileName)
 
         onRenameSubmitted: function(new_name) {
-            const error = GifController.renameFile(root.pendingRenamePath, new_name)
+            const error = GifController.renameFile(root.pendingRenameUrl, new_name)
             if (error.length > 0)
                 renameDialog.errorText = error
             else

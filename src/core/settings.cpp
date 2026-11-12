@@ -1,5 +1,7 @@
 #include "settings.h"
 
+#include <QMetaType>
+
 SettingsManager::SettingsManager()
     : settings(AppIdentity::ORGANIZATION, AppIdentity::APPLICATION)
 {
@@ -19,7 +21,7 @@ const QList<SettingsManager::SettingDef> &SettingsManager::settingDefs()
          &SettingsManager::thumbnailSizeChanged},
         {KEY_COLUMNS, "columns", DEFAULT_COLUMNS,
          &SettingsManager::columnsChanged},
-        {KEY_DEFAULT_FOLDER, "defaultFolder", QString(),
+        {KEY_DEFAULT_FOLDER, "defaultFolderUrl", QUrl(),
          &SettingsManager::defaultFolderChanged},
         {KEY_SEARCH_DEBOUNCE, "searchDebounceMs", DEFAULT_SEARCH_DEBOUNCE,
          &SettingsManager::searchDebounceMsChanged},
@@ -62,12 +64,29 @@ void SettingsManager::setColumns(int columns) {
     writeSetting(KEY_COLUMNS, columns, &SettingsManager::columnsChanged);
 }
 
-QString SettingsManager::getDefaultFolder() const {
-    return settings.value(KEY_DEFAULT_FOLDER, "").toString();
+QUrl SettingsManager::getDefaultFolderUrl() const {
+    const QVariant raw = settings.value(KEY_DEFAULT_FOLDER);
+    if (raw.metaType().id() == QMetaType::QUrl)
+        return raw.toUrl();
+
+    // Migrate the legacy desktop value, which was stored as a plain path.
+    const QString text = raw.toString();
+    if (text.isEmpty())
+        return {};
+
+    const QUrl url(text);
+    if (url.scheme() == QLatin1String("file")
+        || url.scheme() == QLatin1String("content")) {
+        return url;
+    }
+    return QUrl::fromLocalFile(text);
 }
 
-void SettingsManager::setDefaultFolder(const QString &path) {
-    writeSetting(KEY_DEFAULT_FOLDER, path, &SettingsManager::defaultFolderChanged);
+void SettingsManager::setDefaultFolderUrl(const QUrl &url) {
+    // Store a plain string: QSettings' INI backend is not guaranteed to
+    // preserve the QUrl type, and older builds wrote a plain path here.
+    writeSetting(KEY_DEFAULT_FOLDER, url.toString(),
+                 &SettingsManager::defaultFolderChanged);
 }
 
 int SettingsManager::getSearchDebounceMs() const {

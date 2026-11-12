@@ -3,7 +3,7 @@ import QtQuick
 Item {
     id: root
 
-    required property string filePath
+    required property string fileName
     required property url fileUrl
     required property url thumbnailUrl
     required property bool thumbnailReady
@@ -18,7 +18,8 @@ Item {
     readonly property bool onScreen: visible
                                       && (y + height > viewTop)
                                       && (y < viewBottom)
-    readonly property bool mutating: GifController.mutatingPath === filePath
+    readonly property bool mutating: GifController.mutatingUrl.toString()
+                                     === root.fileUrl.toString()
 
     signal openRequested()
     signal contextMenuRequested(real sceneX, real sceneY)
