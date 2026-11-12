@@ -1,12 +1,18 @@
 #include <QtTest>
 
+#include "desktop_gif_storage.h"
+#include "gif_item.h"
 #include "gif_loader_task.h"
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QImage>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QUrl>
+
+#include <memory>
 
 namespace {
 
@@ -39,6 +45,19 @@ QStringList writeGifs(QTemporaryDir &folder, int count)
     return paths;
 }
 
+std::shared_ptr<GifStorage> desktopStorage()
+{
+    return std::make_shared<DesktopGifStorage>();
+}
+
+QList<GifItem> itemsFor(const QStringList &paths)
+{
+    QList<GifItem> items;
+    for (const QString &path : paths)
+        items.append({QUrl::fromLocalFile(path), QFileInfo(path).fileName()});
+    return items;
+}
+
 } // namespace
 
 class TestGifLoaderTask : public QObject
@@ -60,7 +79,8 @@ void TestGifLoaderTask::loadsFolderAndEmitsOrderedSignals()
     QVERIFY(folder.isValid());
     QVERIFY(!writeGifs(folder, 3).isEmpty());
 
-    GifLoaderTask task(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+    GifLoaderTask task(GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage()));
 
     QStringList order;
     QSignalSpy discovered(&task, &GifLoaderTask::filesDiscovered);
@@ -81,7 +101,7 @@ void TestGifLoaderTask::loadsFolderAndEmitsOrderedSignals()
     QVERIFY(finished.wait(5000));
 
     QCOMPARE(discovered.count(), 1);
-    QCOMPARE(discovered.first().at(0).toStringList().size(), 3);
+    QCOMPARE(discovered.first().at(0).value<QList<GifItem>>().size(), 3);
     QCOMPARE(loaded.count(), 3);
     QCOMPARE(progress.count(), 3);
     QCOMPARE(progress.last().at(0).toInt(), 3);
@@ -101,7 +121,8 @@ void TestGifLoaderTask::explicitFileListSkipsScan()
     const QStringList files = writeGifs(folder, 2);
     QVERIFY(!files.isEmpty());
 
-    GifLoaderTask task(GifLoadRequest::fromFiles(files, QSize(8, 8)));
+    GifLoaderTask task(GifLoadRequest::fromFiles(itemsFor(files), QSize(8, 8),
+                                                 desktopStorage()));
 
     QSignalSpy discovered(&task, &GifLoaderTask::filesDiscovered);
     QSignalSpy loaded(&task, &GifLoaderTask::gifLoaded);
@@ -112,7 +133,7 @@ void TestGifLoaderTask::explicitFileListSkipsScan()
 
     QCOMPARE(discovered.count(), 0);
     QCOMPARE(loaded.count(), 2);
-    QCOMPARE(loaded.last().at(0).toString(), files.last());
+    QCOMPARE(loaded.last().at(0).toUrl(), QUrl::fromLocalFile(files.last()));
 }
 
 void TestGifLoaderTask::cancelDoesNotEmitFinished()
@@ -121,7 +142,8 @@ void TestGifLoaderTask::cancelDoesNotEmitFinished()
     QVERIFY(folder.isValid());
     QVERIFY(!writeGifs(folder, 50).isEmpty());
 
-    GifLoaderTask task(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+    GifLoaderTask task(GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage()));
 
     QSignalSpy finished(&task, &GifLoaderTask::finished);
     QSignalSpy loaded(&task, &GifLoaderTask::gifLoaded);
@@ -143,7 +165,8 @@ void TestGifLoaderTask::cancelIsIdempotent()
     QVERIFY(folder.isValid());
     QVERIFY(!writeGifs(folder, 50).isEmpty());
 
-    GifLoaderTask task(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+    GifLoaderTask task(GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage()));
 
     QSignalSpy finished(&task, &GifLoaderTask::finished);
     QSignalSpy loaded(&task, &GifLoaderTask::gifLoaded);
@@ -166,7 +189,8 @@ void TestGifLoaderTask::startAfterCancelDoesNothing()
     QVERIFY(folder.isValid());
     QVERIFY(!writeGifs(folder, 5).isEmpty());
 
-    GifLoaderTask task(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+    GifLoaderTask task(GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage()));
 
     QSignalSpy finished(&task, &GifLoaderTask::finished);
     QSignalSpy loaded(&task, &GifLoaderTask::gifLoaded);
@@ -188,7 +212,8 @@ void TestGifLoaderTask::destructorStopsRunningTask()
     QVERIFY(!writeGifs(folder, 20).isEmpty());
 
     {
-        GifLoaderTask task(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+        GifLoaderTask task(GifLoadRequest::fromContainer(
+            QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage()));
         QSignalSpy loaded(&task, &GifLoaderTask::gifLoaded);
         task.start();
         QVERIFY(loaded.wait(5000));

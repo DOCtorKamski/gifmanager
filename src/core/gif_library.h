@@ -9,11 +9,13 @@
 #include <QPointer>
 #include <QSize>
 #include <QString>
-#include <QStringList>
 #include <QUrl>
+
+#include <memory>
 
 class QSortFilterProxyModel;
 class GifModel;
+class GifStorage;
 class ThumbnailProvider;
 
 class GifLibrary : public QObject
@@ -22,23 +24,24 @@ class GifLibrary : public QObject
 
 public:
     explicit GifLibrary(ThumbnailProvider *provider, QObject *parent = nullptr);
+    GifLibrary(ThumbnailProvider *provider, std::shared_ptr<GifStorage> storage,
+               QObject *parent = nullptr);
     ~GifLibrary() override;
 
     QAbstractItemModel *proxyModel() const;
     bool isLoading() const;
     int progressCurrent() const;
     int progressTotal() const;
-    QString currentFolder() const;
     QUrl currentFolderUrl() const;
 
-    QString loadFolder(const QString &path);
+    QString loadFolder(const QUrl &container);
     QString loadFolderUrl(const QUrl &url);
     QString loadDefaultFolder();
     void setFilterQuery(const QString &query);
     void applySettings();
     void reloadCurrentFolder();
     void stopLoading();
-    void removeModelEntry(const QString &path);
+    void removeModelEntry(const QUrl &url);
     void shutdown();
 
 signals:
@@ -48,8 +51,8 @@ signals:
     void filterCleared();
 
 private slots:
-    void onFilesDiscovered(const QStringList &file_paths);
-    void onGifLoaded(const QString &path, const QImage &image);
+    void onFilesDiscovered(const QList<GifItem> &items);
+    void onGifLoaded(const QUrl &url, const QImage &image);
     void onProgress(int current, int total);
     void onFinished();
 
@@ -59,8 +62,9 @@ private:
 
     GifModel *gif_model = nullptr;
     QSortFilterProxyModel *proxy_model = nullptr;
+    std::shared_ptr<GifStorage> storage;
 
-    QString current_folder;
+    QUrl current_container;
 
     // At most one task is alive at a time: every new load cancels the previous
     // one, which is why stale worker signals no longer need load IDs. The

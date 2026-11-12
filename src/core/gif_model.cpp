@@ -2,7 +2,6 @@
 #include "thumbnail_provider.h"
 
 #include <QByteArray>
-#include <QFileInfo>
 
 GifModel::GifModel(ThumbnailProvider *provider, QObject *parent)
     : QAbstractListModel(parent)
@@ -25,12 +24,10 @@ QVariant GifModel::data(const QModelIndex &index, int role) const
     const Item &item = items.at(index.row());
 
     switch (role) {
-    case FilePathRole:
-        return item.path;
     case FileNameRole:
         return item.file_name;
     case FileUrlRole:
-        return QUrl::fromLocalFile(item.path);
+        return item.url;
     case ThumbnailUrlRole:
         if (!item.thumbnail_ready || item.image_id.isEmpty())
             return QUrl();
@@ -45,7 +42,6 @@ QVariant GifModel::data(const QModelIndex &index, int role) const
 QHash<int, QByteArray> GifModel::roleNames() const
 {
     QHash<int, QByteArray> roles;
-    roles[FilePathRole] = "filePath";
     roles[FileNameRole] = "fileName";
     roles[FileUrlRole] = "fileUrl";
     roles[ThumbnailUrlRole] = "thumbnailUrl";
@@ -53,7 +49,7 @@ QHash<int, QByteArray> GifModel::roleNames() const
     return roles;
 }
 
-void GifModel::resetFiles(const QStringList &paths)
+void GifModel::resetFiles(const QList<GifItem> &gif_items)
 {
     beginResetModel();
 
@@ -66,24 +62,24 @@ void GifModel::resetFiles(const QStringList &paths)
         thumbnail_provider->clear();
 
     items.clear();
-    path_to_row.clear();
-    items.reserve(paths.size());
+    url_to_row.clear();
+    items.reserve(gif_items.size());
 
-    for (const QString &path : paths) {
+    for (const GifItem &gif_item : gif_items) {
         Item item;
-        item.path = path;
-        item.file_name = QFileInfo(path).fileName();
-        path_to_row.insert(path, items.size());
+        item.url = gif_item.url;
+        item.file_name = gif_item.fileName;
+        url_to_row.insert(item.url, items.size());
         items.append(item);
     }
 
     endResetModel();
 }
 
-void GifModel::setThumbnail(const QString &path, const QImage &image)
+void GifModel::setThumbnail(const QUrl &url, const QImage &image)
 {
-    const auto it = path_to_row.constFind(path);
-    if (it == path_to_row.constEnd())
+    const auto it = url_to_row.constFind(url);
+    if (it == url_to_row.constEnd())
         return;
 
     const int row = it.value();
@@ -104,10 +100,10 @@ void GifModel::setThumbnail(const QString &path, const QImage &image)
                      {ThumbnailUrlRole, ThumbnailReadyRole});
 }
 
-bool GifModel::removeFile(const QString &path)
+bool GifModel::removeFile(const QUrl &url)
 {
-    const auto it = path_to_row.constFind(path);
-    if (it == path_to_row.constEnd())
+    const auto it = url_to_row.constFind(url);
+    if (it == url_to_row.constEnd())
         return false;
 
     const int row = it.value();
@@ -119,22 +115,22 @@ bool GifModel::removeFile(const QString &path)
     items.removeAt(row);
     endRemoveRows();
 
-    rebuildPathIndex();
+    rebuildUrlIndex();
     return true;
 }
 
 QString GifModel::makeImageId(const Item &item) const
 {
     const QString encoded = QString::fromLatin1(
-        item.path.toUtf8().toBase64(QByteArray::Base64UrlEncoding
-                                    | QByteArray::OmitTrailingEquals));
+        item.url.toString().toUtf8().toBase64(QByteArray::Base64UrlEncoding
+                                              | QByteArray::OmitTrailingEquals));
     return encoded + QLatin1Char('/') + QString::number(item.revision)
            + QLatin1Char('/') + QString::number(generation);
 }
 
-void GifModel::rebuildPathIndex()
+void GifModel::rebuildUrlIndex()
 {
-    path_to_row.clear();
+    url_to_row.clear();
     for (int i = 0; i < items.size(); ++i)
-        path_to_row.insert(items.at(i).path, i);
+        url_to_row.insert(items.at(i).url, i);
 }

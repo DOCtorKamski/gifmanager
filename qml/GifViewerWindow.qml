@@ -5,7 +5,6 @@ import QtQuick.Layouts
 Window {
     id: root
 
-    property string filePath: ""
     property url fileUrl
     property string fileName: ""
 
@@ -66,7 +65,7 @@ Window {
                     anchors.centerIn: parent
                     text: qsTr("Failed to load GIF")
                     color: "#dddddd"
-                    visible: root.filePath.length > 0
+                    visible: root.fileUrl.toString().length > 0
                              && viewerImage.status === AnimatedImage.Error
                 }
             }

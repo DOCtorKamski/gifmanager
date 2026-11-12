@@ -3,6 +3,7 @@
 
 #include <QCoreApplication>
 #include <QString>
+#include <QUrl>
 
 class GifFileOperations
 {
@@ -10,14 +11,14 @@ class GifFileOperations
 public:
     struct RenamePlan {
         QString error;
-        QString new_path;
+        QUrl new_url;
         bool changed = false;
     };
 
-    static QString validateFile(const QString &path);
-    static RenamePlan planRename(const QString &path, const QString &new_base_name);
-    static QString removeFile(const QString &path);
-    static QString renameFile(const QString &path, const QString &new_path);
+    static QString validateFile(const QUrl &url);
+    static RenamePlan planRename(const QUrl &url, const QString &new_base_name);
+    static QString removeFile(const QUrl &url);
+    static QString renameFile(const QUrl &url, const QUrl &new_url);
 };
 
 #endif // GIF_FILE_OPERATIONS_H

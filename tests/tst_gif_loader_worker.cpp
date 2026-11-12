@@ -1,5 +1,7 @@
 #include <QtTest>
 
+#include "desktop_gif_storage.h"
+#include "gif_item.h"
 #include "gif_loader_worker.h"
 
 #include <QDir>
@@ -7,6 +9,9 @@
 #include <QFileInfo>
 #include <QImage>
 #include <QTemporaryDir>
+#include <QUrl>
+
+#include <memory>
 
 namespace {
 
@@ -26,6 +31,19 @@ bool writeFile(const QString &path, const QByteArray &contents)
     if (!file.open(QIODevice::WriteOnly))
         return false;
     return file.write(contents) == contents.size();
+}
+
+std::shared_ptr<GifStorage> desktopStorage()
+{
+    return std::make_shared<DesktopGifStorage>();
+}
+
+QList<GifItem> itemsFor(const QStringList &paths)
+{
+    QList<GifItem> items;
+    for (const QString &path : paths)
+        items.append({QUrl::fromLocalFile(path), QFileInfo(path).fileName()});
+    return items;
 }
 
 } // namespace
@@ -52,7 +70,8 @@ void TestGifLoaderWorker::scansOnlyGifFiles()
     QVERIFY(writeFile(folder.filePath(QStringLiteral("note.txt")), "hello"));
     QVERIFY(writeFile(folder.filePath(QStringLiteral("picture.png")), "not a png"));
 
-    GifLoaderWorker worker(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+    GifLoaderWorker worker(GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage()));
     QSignalSpy discovered(&worker, &GifLoaderWorker::filesDiscovered);
     QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
     QSignalSpy finished(&worker, &GifLoaderWorker::finished);
@@ -61,11 +80,13 @@ void TestGifLoaderWorker::scansOnlyGifFiles()
 
     QCOMPARE(discovered.count(), 1);
 
-    const QStringList files = discovered.first().at(0).toStringList();
-    QCOMPARE(files.size(), 2);
-    QCOMPARE(QFileInfo(files.at(0)).fileName(), QStringLiteral("a.GIF"));
-    QCOMPARE(QFileInfo(files.at(1)).fileName(), QStringLiteral("b.gif"));
-    QVERIFY(QFileInfo(files.at(0)).isAbsolute());
+    const QList<GifItem> items =
+        discovered.first().at(0).value<QList<GifItem>>();
+    QCOMPARE(items.size(), 2);
+    QCOMPARE(items.at(0).fileName, QStringLiteral("a.GIF"));
+    QCOMPARE(items.at(1).fileName, QStringLiteral("b.gif"));
+    QVERIFY(items.at(0).url.isLocalFile());
+    QVERIFY(QFileInfo(items.at(0).url.toLocalFile()).isAbsolute());
 
     QCOMPARE(loaded.count(), 2);
     QCOMPARE(finished.count(), 1);
@@ -79,16 +100,18 @@ void TestGifLoaderWorker::scansGifFilesSortedByName()
     QVERIFY(writeFile(folder.filePath(QStringLiteral("m.gif")), tinyGif()));
     QVERIFY(writeFile(folder.filePath(QStringLiteral("a.gif")), tinyGif()));
 
-    GifLoaderWorker worker(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+    GifLoaderWorker worker(GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage()));
     QSignalSpy discovered(&worker, &GifLoaderWorker::filesDiscovered);
 
     worker.process();
 
-    const QStringList files = discovered.first().at(0).toStringList();
-    QCOMPARE(files.size(), 3);
-    QCOMPARE(QFileInfo(files.at(0)).fileName(), QStringLiteral("a.gif"));
-    QCOMPARE(QFileInfo(files.at(1)).fileName(), QStringLiteral("m.gif"));
-    QCOMPARE(QFileInfo(files.at(2)).fileName(), QStringLiteral("z.gif"));
+    const QList<GifItem> items =
+        discovered.first().at(0).value<QList<GifItem>>();
+    QCOMPARE(items.size(), 3);
+    QCOMPARE(items.at(0).fileName, QStringLiteral("a.gif"));
+    QCOMPARE(items.at(1).fileName, QStringLiteral("m.gif"));
+    QCOMPARE(items.at(2).fileName, QStringLiteral("z.gif"));
 }
 
 void TestGifLoaderWorker::reportsFilesBeforeThumbnails()
@@ -98,7 +121,8 @@ void TestGifLoaderWorker::reportsFilesBeforeThumbnails()
     QVERIFY(writeFile(folder.filePath(QStringLiteral("a.gif")), tinyGif()));
     QVERIFY(writeFile(folder.filePath(QStringLiteral("b.gif")), tinyGif()));
 
-    GifLoaderWorker worker(GifLoadRequest::fromFolder(folder.path(), QSize(8, 8)));
+    GifLoaderWorker worker(GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage()));
 
     QStringList order;
     connect(&worker, &GifLoaderWorker::filesDiscovered, this,
@@ -126,8 +150,9 @@ void TestGifLoaderWorker::explicitFileListSkipsScan()
     QVERIFY(writeFile(first, tinyGif()));
     QVERIFY(writeFile(second, tinyGif()));
 
-    const QStringList files{first, second};
-    GifLoaderWorker worker(GifLoadRequest::fromFiles(files, QSize(4, 4)));
+    const QList<GifItem> files = itemsFor({first, second});
+    GifLoaderWorker worker(GifLoadRequest::fromFiles(files, QSize(4, 4),
+                                                     desktopStorage()));
     QSignalSpy discovered(&worker, &GifLoaderWorker::filesDiscovered);
     QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
     QSignalSpy progress(&worker, &GifLoaderWorker::progress);
@@ -140,7 +165,7 @@ void TestGifLoaderWorker::explicitFileListSkipsScan()
     QCOMPARE(progress.count(), 2);
     QCOMPARE(progress.last().at(0).toInt(), 2);
     QCOMPARE(progress.last().at(1).toInt(), 2);
-    QCOMPARE(loaded.last().at(0).toString(), second);
+    QCOMPARE(loaded.last().at(0).toUrl(), QUrl::fromLocalFile(second));
     QCOMPARE(finished.count(), 1);
 }
 
@@ -151,7 +176,8 @@ void TestGifLoaderWorker::stopRequestBeforeProcessEmitsNoResults()
     const QString file = folder.filePath(QStringLiteral("a.gif"));
     QVERIFY(writeFile(file, tinyGif()));
 
-    GifLoaderWorker worker(GifLoadRequest::fromFiles({file}, QSize(8, 8)));
+    GifLoaderWorker worker(GifLoadRequest::fromFiles(itemsFor({file}), QSize(8, 8),
+                                                     desktopStorage()));
     worker.requestStop();
 
     QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
@@ -170,7 +196,8 @@ void TestGifLoaderWorker::invalidImageProducesPlaceholder()
     const QString broken = folder.filePath(QStringLiteral("broken.gif"));
     QVERIFY(writeFile(broken, "this is not a gif"));
 
-    GifLoaderWorker worker(GifLoadRequest::fromFiles({broken}, QSize(12, 9)));
+    GifLoaderWorker worker(GifLoadRequest::fromFiles(itemsFor({broken}), QSize(12, 9),
+                                                     desktopStorage()));
     QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
 
     worker.process();

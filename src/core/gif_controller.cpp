@@ -1,11 +1,21 @@
 #include "gif_controller.h"
 
+#include "desktop_gif_storage.h"
 #include "gif_file_operations.h"
 #include "gif_library.h"
 
+#include <utility>
+
 GifController::GifController(ThumbnailProvider *provider, QObject *parent)
+    : GifController(provider, std::make_shared<DesktopGifStorage>(), parent)
+{
+}
+
+GifController::GifController(ThumbnailProvider *provider,
+                             std::shared_ptr<GifStorage> storage,
+                             QObject *parent)
     : QObject(parent)
-    , library(new GifLibrary(provider, this))
+    , library(new GifLibrary(provider, std::move(storage), this))
 {
     connect(library, &GifLibrary::loadingChanged,
             this, &GifController::loadingChanged);
@@ -42,24 +52,24 @@ int GifController::progressTotal() const
     return library->progressTotal();
 }
 
-QString GifController::currentFolder() const
-{
-    return library->currentFolder();
-}
-
 QUrl GifController::currentFolderUrl() const
 {
     return library->currentFolderUrl();
 }
 
-QString GifController::mutatingPath() const
+bool GifController::hasFolder() const
 {
-    return mutating_path;
+    return !library->currentFolderUrl().isEmpty();
 }
 
-QString GifController::loadFolder(const QString &path)
+QUrl GifController::mutatingUrl() const
 {
-    return library->loadFolder(path);
+    return mutating_url;
+}
+
+QString GifController::loadFolder(const QUrl &url)
+{
+    return library->loadFolder(url);
 }
 
 QString GifController::loadFolderUrl(const QUrl &url)
@@ -77,52 +87,52 @@ void GifController::setFilterQuery(const QString &query)
     library->setFilterQuery(query);
 }
 
-QString GifController::deleteFile(const QString &path)
+QString GifController::deleteFile(const QUrl &url)
 {
-    const QString error = GifFileOperations::validateFile(path);
+    const QString error = GifFileOperations::validateFile(url);
     if (!error.isEmpty())
         return error;
 
-    beginFileMutation(path);
+    beginFileMutation(url);
 
-    const QString operation_error = GifFileOperations::removeFile(path);
+    const QString operation_error = GifFileOperations::removeFile(url);
     finishFileMutation();
     return operation_error;
 }
 
-QString GifController::renameFile(const QString &path, const QString &new_base_name)
+QString GifController::renameFile(const QUrl &url, const QString &new_base_name)
 {
-    const QString error = GifFileOperations::validateFile(path);
+    const QString error = GifFileOperations::validateFile(url);
     if (!error.isEmpty())
         return error;
 
     const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(path, new_base_name);
+        GifFileOperations::planRename(url, new_base_name);
     if (!plan.error.isEmpty())
         return plan.error;
     if (!plan.changed)
         return {};
 
-    beginFileMutation(path);
+    beginFileMutation(url);
 
     const QString operation_error =
-        GifFileOperations::renameFile(path, plan.new_path);
+        GifFileOperations::renameFile(url, plan.new_url);
     finishFileMutation();
     return operation_error;
 }
 
-void GifController::beginFileMutation(const QString &path)
+void GifController::beginFileMutation(const QUrl &url)
 {
-    setMutatingPath(path);
-    emit fileAboutToChange(path);
+    setMutatingUrl(url);
+    emit fileAboutToChange(url);
 
     library->stopLoading();
-    library->removeModelEntry(path);
+    library->removeModelEntry(url);
 }
 
 void GifController::finishFileMutation()
 {
-    setMutatingPath(QString());
+    setMutatingUrl(QUrl());
     library->reloadCurrentFolder();
 }
 
@@ -136,11 +146,11 @@ void GifController::shutdown()
     library->shutdown();
 }
 
-void GifController::setMutatingPath(const QString &path)
+void GifController::setMutatingUrl(const QUrl &url)
 {
-    if (mutating_path == path)
+    if (mutating_url == url)
         return;
 
-    mutating_path = path;
-    emit mutatingPathChanged();
+    mutating_url = url;
+    emit mutatingUrlChanged();
 }

@@ -7,7 +7,6 @@
 #include <QImageReader>
 #include <QMimeData>
 #include <QPixmap>
-#include <QUrl>
 #include <QVariant>
 
 ClipboardService &ClipboardService::instance()
@@ -21,8 +20,14 @@ ClipboardService::ClipboardService(QObject *parent)
 {
 }
 
-void ClipboardService::copyFile(const QString &path)
+void ClipboardService::copyFile(const QUrl &url)
 {
+    // Desktop payload. Android will use a content:// URI via FileProvider in a
+    // later step; the QML side already passes a QUrl.
+    if (!url.isLocalFile())
+        return;
+
+    const QString path = url.toLocalFile();
     QMimeData *mime = new QMimeData;
 
     mime->setData("application/x-qt-windows-mime;value=\"FileNameW\"",
@@ -36,7 +41,7 @@ void ClipboardService::copyFile(const QString &path)
     }
 
     QList<QUrl> urls;
-    urls.append(QUrl::fromLocalFile(path));
+    urls.append(url);
     mime->setUrls(urls);
 
     QGuiApplication::clipboard()->setMimeData(mime);

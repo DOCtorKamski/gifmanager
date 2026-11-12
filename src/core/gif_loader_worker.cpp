@@ -1,36 +1,40 @@
 #include "gif_loader_worker.h"
 
-#include <QDir>
-#include <QDirIterator>
-#include <QFileInfo>
-#include <QImageReader>
+#include <QMetaType>
 
-#include <algorithm>
 #include <utility>
 
-GifLoadRequest GifLoadRequest::fromFolder(const QString &folder_path,
-                                          const QSize &thumbnail_size)
+GifLoadRequest GifLoadRequest::fromContainer(const QUrl &container,
+                                             const QSize &thumbnail_size,
+                                             std::shared_ptr<GifStorage> storage)
 {
     GifLoadRequest request;
-    request.source = Source::Folder;
-    request.folder = folder_path;
+    request.source = Source::Container;
+    request.container = container;
     request.thumbnail_size = thumbnail_size;
+    request.storage = std::move(storage);
     return request;
 }
 
-GifLoadRequest GifLoadRequest::fromFiles(const QStringList &file_paths,
-                                         const QSize &thumbnail_size)
+GifLoadRequest GifLoadRequest::fromFiles(const QList<GifItem> &files,
+                                         const QSize &thumbnail_size,
+                                         std::shared_ptr<GifStorage> storage)
 {
     GifLoadRequest request;
     request.source = Source::FileList;
-    request.files = file_paths;
+    request.files = files;
     request.thumbnail_size = thumbnail_size;
+    request.storage = std::move(storage);
     return request;
 }
 
 GifLoaderWorker::GifLoaderWorker(GifLoadRequest request_)
     : request(std::move(request_))
 {
+    // The list is forwarded across the loader thread and captured by QSignalSpy
+    // in tests, so make the metatypes available before any connection is made.
+    qRegisterMetaType<GifItem>("GifItem");
+    qRegisterMetaType<QList<GifItem>>("QList<GifItem>");
 }
 
 void GifLoaderWorker::requestStop()
@@ -45,10 +49,16 @@ bool GifLoaderWorker::shouldStop() const
 
 void GifLoaderWorker::process()
 {
-    QStringList files = request.files;
+    if (!request.storage) {
+        emit finished();
+        return;
+    }
 
-    if (request.source == GifLoadRequest::Source::Folder) {
-        files = scanFolder();
+    QList<GifItem> files = request.files;
+
+    if (request.source == GifLoadRequest::Source::Container) {
+        files = request.storage->listGifs(
+            request.container, [this] { return shouldStop(); });
         if (shouldStop()) {
             emit finished();
             return;
@@ -60,14 +70,12 @@ void GifLoaderWorker::process()
     const int total = files.size();
     int current = 0;
 
-    for (const QString &file_path : files) {
+    for (const GifItem &item : files) {
         if (shouldStop())
             break;
 
-        QImageReader reader(file_path);
-        reader.setScaledSize(request.thumbnail_size);
-
-        QImage image = reader.read();
+        QImage image = request.storage->readThumbnail(item.url,
+                                                      request.thumbnail_size);
         QImage thumbnail;
         if (!image.isNull()) {
             thumbnail = image.scaled(request.thumbnail_size, Qt::KeepAspectRatio,
@@ -80,30 +88,9 @@ void GifLoaderWorker::process()
         if (shouldStop())
             break;
 
-        emit gifLoaded(file_path, thumbnail);
+        emit gifLoaded(item.url, thumbnail);
         emit progress(++current, total);
     }
 
     emit finished();
-}
-
-QStringList GifLoaderWorker::scanFolder()
-{
-    QStringList files;
-
-    QDirIterator iterator(request.folder, {"*.gif", "*.GIF"}, QDir::Files);
-    while (iterator.hasNext()) {
-        if (shouldStop())
-            return files;
-
-        iterator.next();
-        files.append(iterator.fileInfo().absoluteFilePath());
-    }
-
-    std::sort(files.begin(), files.end(),
-              [](const QString &lhs, const QString &rhs) {
-                  return QFileInfo(lhs).fileName() < QFileInfo(rhs).fileName();
-              });
-
-    return files;
 }

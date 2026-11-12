@@ -10,8 +10,8 @@ Dialog {
 
     title: qsTr("Settings")
     modal: true
-    width: 480
-    height: 560
+    width: parent ? Math.min(480, Math.max(0, parent.width - 32)) : 480
+    height: parent ? Math.min(560, Math.max(0, parent.height - 32)) : 560
     anchors.centerIn: parent
 
     onOpened: loadFromSettings()
@@ -21,7 +21,7 @@ Dialog {
         heightSpin.value = AppSettings.thumbnailHeight
         columnsSpin.value = AppSettings.columns
         scrollSpeedSpin.value = AppSettings.gridScrollSpeed
-        defaultFolderField.text = AppSettings.defaultFolder
+        defaultFolderField.text = PathUtils.toLocalPath(AppSettings.defaultFolderUrl)
 
         viewerWidthSpin.value = AppSettings.viewerWidth
         viewerHeightSpin.value = AppSettings.viewerHeight
@@ -38,7 +38,8 @@ Dialog {
         AppSettings.thumbnailHeight = heightSpin.value
         AppSettings.columns = columnsSpin.value
         AppSettings.gridScrollSpeed = scrollSpeedSpin.value
-        AppSettings.defaultFolder = defaultFolderField.text.trim()
+        AppSettings.defaultFolderUrl = PathUtils.fromLocalPath(
+            defaultFolderField.text.trim())
         AppSettings.searchDebounceMs = searchDebounceSpin.value
         AppSettings.visibilityDebounceMs = visibilityDebounceSpin.value
         AppSettings.viewerWidth = viewerWidthSpin.value
@@ -59,122 +60,135 @@ Dialog {
             TabButton { text: qsTr("Extended") }
         }
 
-        StackLayout {
-            currentIndex: tabs.currentIndex
+        Flickable {
+            id: settingsFlickable
             Layout.fillWidth: true
             Layout.fillHeight: true
+            clip: true
+            contentWidth: width
+            contentHeight: pages.height
+            interactive: contentHeight > height
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { }
 
-            GridLayout {
-                columns: 2
-                columnSpacing: 12
-                rowSpacing: 10
+            StackLayout {
+                id: pages
+                width: settingsFlickable.width
+                height: Math.max(pages.implicitHeight, settingsFlickable.height)
+                currentIndex: tabs.currentIndex
 
-                Label { text: qsTr("Thumbnail width:") }
-                SpinBox {
-                    id: widthSpin
-                    from: 32
-                    to: 512
-                    editable: true
-                }
+                GridLayout {
+                    columns: 2
+                    columnSpacing: 12
+                    rowSpacing: 10
 
-                Label { text: qsTr("Thumbnail height:") }
-                SpinBox {
-                    id: heightSpin
-                    from: 32
-                    to: 512
-                    editable: true
-                }
+                    Label { text: qsTr("Thumbnail width:") }
+                    SpinBox {
+                        id: widthSpin
+                        from: 32
+                        to: 512
+                        editable: true
+                    }
 
-                Label { text: qsTr("Columns:") }
-                SpinBox {
-                    id: columnsSpin
-                    from: 1
-                    to: 8
-                    editable: true
-                }
+                    Label { text: qsTr("Thumbnail height:") }
+                    SpinBox {
+                        id: heightSpin
+                        from: 32
+                        to: 512
+                        editable: true
+                    }
 
-                Label { text: qsTr("Scroll speed (px per wheel notch):") }
-                SpinBox {
-                    id: scrollSpeedSpin
-                    from: 24
-                    to: 264
-                    stepSize: 12
-                    editable: true
-                }
+                    Label { text: qsTr("Columns:") }
+                    SpinBox {
+                        id: columnsSpin
+                        from: 1
+                        to: 8
+                        editable: true
+                    }
 
-                Label {
-                    text: qsTr("Default folder:")
-                    Layout.alignment: Qt.AlignTop
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    TextField {
-                        id: defaultFolderField
+                    Label { text: qsTr("Scroll speed (px per wheel notch):") }
+                    SpinBox {
+                        id: scrollSpeedSpin
+                        from: 24
+                        to: 264
+                        stepSize: 12
+                        editable: true
+                    }
+
+                    Label {
+                        text: qsTr("Default folder:")
+                        Layout.alignment: Qt.AlignTop
+                    }
+                    RowLayout {
                         Layout.fillWidth: true
+                        TextField {
+                            id: defaultFolderField
+                            Layout.fillWidth: true
+                        }
+                        Button {
+                            text: qsTr("Browse...")
+                            onClicked: browseDialog.open()
+                        }
                     }
-                    Button {
-                        text: qsTr("Browse...")
-                        onClicked: browseDialog.open()
+
+                    Item { Layout.fillHeight: true }
+                }
+
+                GridLayout {
+                    columns: 2
+                    columnSpacing: 12
+                    rowSpacing: 10
+
+                    Label { text: qsTr("Search debounce (ms):") }
+                    SpinBox {
+                        id: searchDebounceSpin
+                        from: 50
+                        to: 1000
+                        editable: true
                     }
+
+                    Label { text: qsTr("Visibility debounce (ms):") }
+                    SpinBox {
+                        id: visibilityDebounceSpin
+                        from: 30
+                        to: 500
+                        editable: true
+                    }
+
+                    Label { text: qsTr("Viewer width:") }
+                    SpinBox {
+                        id: viewerWidthSpin
+                        from: 400
+                        to: 1920
+                        editable: true
+                    }
+
+                    Label { text: qsTr("Viewer height:") }
+                    SpinBox {
+                        id: viewerHeightSpin
+                        from: 400
+                        to: 1920
+                        editable: true
+                    }
+
+                    Label { text: qsTr("Grid horizontal spacing:") }
+                    SpinBox {
+                        id: gridHSpacingSpin
+                        from: 0
+                        to: 20
+                        editable: true
+                    }
+
+                    Label { text: qsTr("Grid vertical spacing:") }
+                    SpinBox {
+                        id: gridVSpacingSpin
+                        from: 0
+                        to: 20
+                        editable: true
+                    }
+
+                    Item { Layout.fillHeight: true }
                 }
-
-                Item { Layout.fillHeight: true }
-            }
-
-            GridLayout {
-                columns: 2
-                columnSpacing: 12
-                rowSpacing: 10
-
-                Label { text: qsTr("Search debounce (ms):") }
-                SpinBox {
-                    id: searchDebounceSpin
-                    from: 50
-                    to: 1000
-                    editable: true
-                }
-
-                Label { text: qsTr("Visibility debounce (ms):") }
-                SpinBox {
-                    id: visibilityDebounceSpin
-                    from: 30
-                    to: 500
-                    editable: true
-                }
-
-                Label { text: qsTr("Viewer width:") }
-                SpinBox {
-                    id: viewerWidthSpin
-                    from: 400
-                    to: 1920
-                    editable: true
-                }
-
-                Label { text: qsTr("Viewer height:") }
-                SpinBox {
-                    id: viewerHeightSpin
-                    from: 400
-                    to: 1920
-                    editable: true
-                }
-
-                Label { text: qsTr("Grid horizontal spacing:") }
-                SpinBox {
-                    id: gridHSpacingSpin
-                    from: 0
-                    to: 20
-                    editable: true
-                }
-
-                Label { text: qsTr("Grid vertical spacing:") }
-                SpinBox {
-                    id: gridVSpacingSpin
-                    from: 0
-                    to: 20
-                    editable: true
-                }
-
-                Item { Layout.fillHeight: true }
             }
         }
     }
@@ -215,7 +229,7 @@ Dialog {
     FolderDialog {
         id: browseDialog
         title: qsTr("Select Default Folder")
-        currentFolder: PathUtils.localFileUrl(defaultFolderField.text)
-        onAccepted: defaultFolderField.text = PathUtils.localPathFromUrl(selectedFolder)
+        currentFolder: AppSettings.defaultFolderUrl
+        onAccepted: defaultFolderField.text = PathUtils.toLocalPath(selectedFolder)
     }
 }

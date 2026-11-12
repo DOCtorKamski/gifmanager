@@ -11,10 +11,9 @@ class PathUtils : public QObject
 public:
     static PathUtils &instance();
 
-    Q_INVOKABLE QString displayName(const QString &path) const;
-    Q_INVOKABLE QString baseNameForPath(const QString &path) const;
-    Q_INVOKABLE QUrl localFileUrl(const QString &path) const;
-    Q_INVOKABLE QString localPathFromUrl(const QUrl &url) const;
+    Q_INVOKABLE QUrl fromLocalPath(const QString &path) const;
+    Q_INVOKABLE QString toLocalPath(const QUrl &url) const;
+    Q_INVOKABLE QString baseName(const QString &fileName) const;
 
 private:
     explicit PathUtils(QObject *parent = nullptr);

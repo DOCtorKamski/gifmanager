@@ -5,6 +5,7 @@
 #include <QRect>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QUrl>
 
 class TestSettings : public QObject
 {
@@ -16,6 +17,7 @@ private slots:
 
     void defaultsAreReportedWhenStorageIsEmpty();
     void valuesRoundTripThroughQSettings();
+    void legacyStringDefaultFolderIsMigrated();
     void defaultValuesCoverEverySetting();
     void resetToDefaultsRestoresValues();
     void resetToDefaultsKeepsWindowGeometry();
@@ -52,7 +54,7 @@ void TestSettings::defaultsAreReportedWhenStorageIsEmpty()
 
     QCOMPARE(settings.getThumbnailSize(), QSize(210, 170));
     QCOMPARE(settings.getColumns(), 3);
-    QVERIFY(settings.getDefaultFolder().isEmpty());
+    QVERIFY(settings.getDefaultFolderUrl().isEmpty());
     QCOMPARE(settings.getSearchDebounceMs(), 200);
     QCOMPARE(settings.getVisibilityDebounceMs(), 50);
     QCOMPARE(settings.getViewerSize(), QSize(800, 600));
@@ -69,7 +71,7 @@ void TestSettings::valuesRoundTripThroughQSettings()
 
     settings.setThumbnailSize(QSize(120, 90));
     settings.setColumns(4);
-    settings.setDefaultFolder(QStringLiteral("/gifs"));
+    settings.setDefaultFolderUrl(QUrl::fromLocalFile(QStringLiteral("/gifs")));
     settings.setSearchDebounceMs(111);
     settings.setVisibilityDebounceMs(22);
     settings.setViewerSize(QSize(640, 480));
@@ -84,7 +86,7 @@ void TestSettings::valuesRoundTripThroughQSettings()
     QCOMPARE(probe.value(QStringLiteral("thumbnail/size")).toSize(), QSize(120, 90));
     QCOMPARE(probe.value(QStringLiteral("layout/columns")).toInt(), 4);
     QCOMPARE(probe.value(QStringLiteral("folder/default")).toString(),
-             QStringLiteral("/gifs"));
+             QUrl::fromLocalFile(QStringLiteral("/gifs")).toString());
     QCOMPARE(probe.value(QStringLiteral("timers/searchDebounceMs")).toInt(), 111);
     QCOMPARE(probe.value(QStringLiteral("timers/visibilityDebounceMs")).toInt(), 22);
     QCOMPARE(probe.value(QStringLiteral("viewer/size")).toSize(), QSize(640, 480));
@@ -92,6 +94,18 @@ void TestSettings::valuesRoundTripThroughQSettings()
     QCOMPARE(probe.value(QStringLiteral("layout/gridVerticalSpacing")).toInt(), 2);
     QCOMPARE(probe.value(QStringLiteral("layout/gridScrollSpeed")).toInt(), 36);
     QCOMPARE(probe.value(QStringLiteral("window/rect")).toRect(), QRect(10, 20, 300, 400));
+}
+
+void TestSettings::legacyStringDefaultFolderIsMigrated()
+{
+    // Older builds stored folder/default as a plain path. It must still be
+    // picked up after the switch to QUrl.
+    QSettings probe(AppIdentity::ORGANIZATION, AppIdentity::APPLICATION);
+    probe.setValue(QStringLiteral("folder/default"), QStringLiteral("/legacy/gifs"));
+    probe.sync();
+
+    QCOMPARE(SettingsManager::instance().getDefaultFolderUrl(),
+             QUrl::fromLocalFile(QStringLiteral("/legacy/gifs")));
 }
 
 void TestSettings::defaultValuesCoverEverySetting()
@@ -103,7 +117,7 @@ void TestSettings::defaultValuesCoverEverySetting()
         QStringLiteral("thumbnailWidth"),
         QStringLiteral("thumbnailHeight"),
         QStringLiteral("columns"),
-        QStringLiteral("defaultFolder"),
+        QStringLiteral("defaultFolderUrl"),
         QStringLiteral("searchDebounceMs"),
         QStringLiteral("visibilityDebounceMs"),
         QStringLiteral("viewerSize"),
@@ -128,7 +142,7 @@ void TestSettings::resetToDefaultsRestoresValues()
     SettingsManager &settings = SettingsManager::instance();
     settings.setColumns(7);
     settings.setThumbnailSize(QSize(400, 300));
-    settings.setDefaultFolder(QStringLiteral("/elsewhere"));
+    settings.setDefaultFolderUrl(QUrl::fromLocalFile(QStringLiteral("/elsewhere")));
 
     QSignalSpy columns_changed(&settings, &SettingsManager::columnsChanged);
     settings.resetToDefaults();
@@ -136,7 +150,7 @@ void TestSettings::resetToDefaultsRestoresValues()
     QCOMPARE(columns_changed.count(), 1);
     QCOMPARE(settings.getColumns(), 3);
     QCOMPARE(settings.getThumbnailSize(), QSize(210, 170));
-    QVERIFY(settings.getDefaultFolder().isEmpty());
+    QVERIFY(settings.getDefaultFolderUrl().isEmpty());
 }
 
 void TestSettings::resetToDefaultsKeepsWindowGeometry()
@@ -177,7 +191,7 @@ void TestSettings::signalsAreEmittedOnChange()
 
     settings.setColumns(5);
     settings.setThumbnailWidth(210);
-    settings.setDefaultFolder(QStringLiteral("/gifs"));
+    settings.setDefaultFolderUrl(QUrl::fromLocalFile(QStringLiteral("/gifs")));
 
     QCOMPARE(columns_changed.count(), 1);
     QCOMPARE(thumbnail_size_changed.count(), 1);

@@ -6,7 +6,10 @@
 #include <QString>
 #include <QUrl>
 
+#include <memory>
+
 class GifLibrary;
+class GifStorage;
 class ThumbnailProvider;
 
 class GifController : public QObject
@@ -16,28 +19,30 @@ class GifController : public QObject
     Q_PROPERTY(bool loading READ isLoading NOTIFY loadingChanged)
     Q_PROPERTY(int progressCurrent READ progressCurrent NOTIFY progressChanged)
     Q_PROPERTY(int progressTotal READ progressTotal NOTIFY progressChanged)
-    Q_PROPERTY(QString currentFolder READ currentFolder NOTIFY currentFolderChanged)
     Q_PROPERTY(QUrl currentFolderUrl READ currentFolderUrl NOTIFY currentFolderChanged)
-    Q_PROPERTY(QString mutatingPath READ mutatingPath NOTIFY mutatingPathChanged)
+    Q_PROPERTY(bool hasFolder READ hasFolder NOTIFY currentFolderChanged)
+    Q_PROPERTY(QUrl mutatingUrl READ mutatingUrl NOTIFY mutatingUrlChanged)
 
 public:
     explicit GifController(ThumbnailProvider *provider, QObject *parent = nullptr);
+    GifController(ThumbnailProvider *provider, std::shared_ptr<GifStorage> storage,
+                  QObject *parent = nullptr);
     ~GifController() override;
 
     QAbstractItemModel *proxyModel() const;
     bool isLoading() const;
     int progressCurrent() const;
     int progressTotal() const;
-    QString currentFolder() const;
     QUrl currentFolderUrl() const;
-    QString mutatingPath() const;
+    bool hasFolder() const;
+    QUrl mutatingUrl() const;
 
-    Q_INVOKABLE QString loadFolder(const QString &path);
+    Q_INVOKABLE QString loadFolder(const QUrl &url);
     Q_INVOKABLE QString loadFolderUrl(const QUrl &url);
     Q_INVOKABLE QString loadDefaultFolder();
     Q_INVOKABLE void setFilterQuery(const QString &query);
-    Q_INVOKABLE QString deleteFile(const QString &path);
-    Q_INVOKABLE QString renameFile(const QString &path, const QString &new_base_name);
+    Q_INVOKABLE QString deleteFile(const QUrl &url);
+    Q_INVOKABLE QString renameFile(const QUrl &url, const QString &new_base_name);
     Q_INVOKABLE void applySettings();
     Q_INVOKABLE void shutdown();
 
@@ -46,16 +51,16 @@ signals:
     void progressChanged();
     void currentFolderChanged();
     void filterCleared();
-    void fileAboutToChange(const QString &path);
-    void mutatingPathChanged();
+    void fileAboutToChange(const QUrl &url);
+    void mutatingUrlChanged();
 
 private:
-    void beginFileMutation(const QString &path);
+    void beginFileMutation(const QUrl &url);
     void finishFileMutation();
-    void setMutatingPath(const QString &path);
+    void setMutatingUrl(const QUrl &url);
 
     GifLibrary *library = nullptr;
-    QString mutating_path;
+    QUrl mutating_url;
 };
 
 #endif // GIF_CONTROLLER_H
