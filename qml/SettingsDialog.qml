@@ -38,7 +38,7 @@ Dialog {
         AppSettings.thumbnailHeight = heightSpin.value
         AppSettings.columns = columnsSpin.value
         AppSettings.gridScrollSpeed = scrollSpeedSpin.value
-        AppSettings.defaultFolderUrl = PathUtils.fromLocalPath(
+        AppSettings.defaultFolderUrl = PathUtils.fromUserInput(
             defaultFolderField.text.trim())
         AppSettings.searchDebounceMs = searchDebounceSpin.value
         AppSettings.visibilityDebounceMs = visibilityDebounceSpin.value
@@ -229,7 +229,8 @@ Dialog {
     FolderDialog {
         id: browseDialog
         title: qsTr("Select Default Folder")
-        currentFolder: AppSettings.defaultFolderUrl
+        currentFolder: Qt.platform.os === "android"
+                       ? "" : AppSettings.defaultFolderUrl
         onAccepted: defaultFolderField.text = PathUtils.toLocalPath(selectedFolder)
     }
 }

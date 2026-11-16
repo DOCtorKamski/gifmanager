@@ -49,6 +49,9 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool hasWindowGeometry READ hasWindowGeometry NOTIFY windowGeometryChanged)
 
 public:
+    // Public so tests can create an isolated manager. Production code uses
+    // instance(), which is exposed to QML as the appSettings context property.
+    SettingsManager();
     static SettingsManager& instance();
 
     SettingsManager(const SettingsManager&) = delete;
@@ -126,8 +129,6 @@ private:
         QVariant default_value;
         void (SettingsManager::*notify)();
     };
-
-    SettingsManager();
 
     static const QList<SettingDef> &settingDefs();
     void writeSetting(const char *key, const QVariant &value,

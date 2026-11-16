@@ -1,21 +1,22 @@
 #include "gif_controller.h"
 
-#include "desktop_gif_storage.h"
-#include "gif_file_operations.h"
 #include "gif_library.h"
+#include "gif_storage.h"
+#include "gif_storage_factory.h"
 
 #include <utility>
 
 GifController::GifController(ThumbnailProvider *provider, QObject *parent)
-    : GifController(provider, std::make_shared<DesktopGifStorage>(), parent)
+    : GifController(provider, createPlatformGifStorage(), parent)
 {
 }
 
 GifController::GifController(ThumbnailProvider *provider,
-                             std::shared_ptr<GifStorage> storage,
+                             std::shared_ptr<GifStorage> storage_,
                              QObject *parent)
     : QObject(parent)
-    , library(new GifLibrary(provider, std::move(storage), this))
+    , storage(std::move(storage_))
+    , library(new GifLibrary(provider, storage, this))
 {
     connect(library, &GifLibrary::loadingChanged,
             this, &GifController::loadingChanged);
@@ -89,25 +90,24 @@ void GifController::setFilterQuery(const QString &query)
 
 QString GifController::deleteFile(const QUrl &url)
 {
-    const QString error = GifFileOperations::validateFile(url);
+    const QString error = storage->validateFile(url);
     if (!error.isEmpty())
         return error;
 
     beginFileMutation(url);
 
-    const QString operation_error = GifFileOperations::removeFile(url);
+    const QString operation_error = storage->removeFile(url);
     finishFileMutation();
     return operation_error;
 }
 
 QString GifController::renameFile(const QUrl &url, const QString &new_base_name)
 {
-    const QString error = GifFileOperations::validateFile(url);
+    const QString error = storage->validateFile(url);
     if (!error.isEmpty())
         return error;
 
-    const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(url, new_base_name);
+    const GifStorage::RenamePlan plan = storage->planRename(url, new_base_name);
     if (!plan.error.isEmpty())
         return plan.error;
     if (!plan.changed)
@@ -116,7 +116,7 @@ QString GifController::renameFile(const QUrl &url, const QString &new_base_name)
     beginFileMutation(url);
 
     const QString operation_error =
-        GifFileOperations::renameFile(url, plan.new_url);
+        storage->renameFile(url, plan.new_display_name);
     finishFileMutation();
     return operation_error;
 }

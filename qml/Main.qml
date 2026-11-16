@@ -291,7 +291,8 @@ ApplicationWindow {
     FolderDialog {
         id: folderDialog
         title: qsTr("Select GIF Folder")
-        currentFolder: GifController.currentFolderUrl
+        currentFolder: Qt.platform.os === "android"
+                       ? "" : GifController.currentFolderUrl
         onAccepted: {
             const error = GifController.loadFolderUrl(selectedFolder)
             if (error.length > 0)

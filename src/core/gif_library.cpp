@@ -1,8 +1,8 @@
 #include "gif_library.h"
 
-#include "desktop_gif_storage.h"
 #include "gif_loader_task.h"
 #include "gif_model.h"
+#include "gif_storage_factory.h"
 #include "settings.h"
 #include "thumbnail_provider.h"
 
@@ -20,7 +20,7 @@ QString displayLocation(const QUrl &url)
 } // namespace
 
 GifLibrary::GifLibrary(ThumbnailProvider *provider, QObject *parent)
-    : GifLibrary(provider, std::make_shared<DesktopGifStorage>(), parent)
+    : GifLibrary(provider, createPlatformGifStorage(), parent)
 {
 }
 

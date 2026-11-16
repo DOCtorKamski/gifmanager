@@ -6,8 +6,8 @@
 #include <QUrl>
 
 // A single GIF as seen by the application. `url` is the stable identity
-// (file:// on desktop, content:// once Android storage lands) and `fileName`
-// is the display name supplied by the storage backend.
+// (file:// on desktop, content:// on Android) and `fileName` is the display
+// name supplied by the storage backend.
 struct GifItem
 {
     QUrl url;

@@ -2,6 +2,7 @@
 
 #include "gif_controller.h"
 #include "gif_model.h"
+#include "gif_storage.h"
 #include "settings.h"
 #include "thumbnail_provider.h"
 
@@ -12,6 +13,8 @@
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QUrl>
+
+#include <atomic>
 
 namespace {
 
@@ -55,6 +58,58 @@ QStringList rowFileNames(QAbstractItemModel *model)
     return names;
 }
 
+class FakeGifStorage : public GifStorage
+{
+public:
+    bool exists(const QUrl &) const override { return true; }
+
+    QList<GifItem> listGifs(const QUrl &, const StopPredicate &) override
+    {
+        ++list_calls;
+        return items;
+    }
+
+    QImage readThumbnail(const QUrl &, const QSize &) override { return {}; }
+
+    QString validateFile(const QUrl &) const override
+    {
+        ++validate_calls;
+        return validate_error;
+    }
+
+    RenamePlan planRename(const QUrl &, const QString &) const override
+    {
+        ++plan_calls;
+        return plan;
+    }
+
+    QString removeFile(const QUrl &) override
+    {
+        ++remove_calls;
+        return remove_error;
+    }
+
+    QString renameFile(const QUrl &, const QString &new_display_name) override
+    {
+        ++rename_calls;
+        renamed_to = new_display_name;
+        return rename_error;
+    }
+
+    QList<GifItem> items;
+    RenamePlan plan;
+    QString validate_error;
+    QString remove_error;
+    QString rename_error;
+    QString renamed_to;
+
+    mutable std::atomic_int list_calls{0};
+    mutable std::atomic_int validate_calls{0};
+    mutable std::atomic_int plan_calls{0};
+    mutable std::atomic_int remove_calls{0};
+    mutable std::atomic_int rename_calls{0};
+};
+
 } // namespace
 
 class TestGifController : public QObject
@@ -72,6 +127,8 @@ private slots:
     void renameKeepsAlphabeticalOrder();
     void renameRejectsInvalidNameWithoutReloading();
     void reloadPicksUpExternalFiles();
+    void mutationsAreDelegatedToStorage();
+    void storageErrorsAreReturned();
 
 private:
     QTemporaryDir settings_dir;
@@ -278,6 +335,69 @@ void TestGifController::renameRejectsInvalidNameWithoutReloading()
     QVERIFY(!controller.isLoading());
     QVERIFY(QFile::exists(path));
     QCOMPARE(controller.proxyModel()->rowCount(), 1);
+}
+
+void TestGifController::mutationsAreDelegatedToStorage()
+{
+    const QUrl container(QStringLiteral("content://test/tree"));
+    const QUrl file(QStringLiteral("content://test/tree/document/1"));
+
+    auto storage = std::make_shared<FakeGifStorage>();
+    storage->items = {{file, QStringLiteral("photo.gif")}};
+    storage->plan = {{}, QStringLiteral("renamed.gif"), true};
+
+    ThumbnailProvider provider;
+    GifController controller(&provider, storage);
+
+    const QString load_error = controller.loadFolder(container);
+    QVERIFY2(load_error.isEmpty(), qPrintable(load_error));
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+    QCOMPARE(controller.proxyModel()->rowCount(), 1);
+    QCOMPARE(storage->list_calls.load(), 1);
+
+    QCOMPARE(controller.deleteFile(file), QString());
+    QCOMPARE(storage->validate_calls.load(), 1);
+    QCOMPARE(storage->remove_calls.load(), 1);
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+
+    QCOMPARE(controller.renameFile(file, QStringLiteral("renamed")), QString());
+    QCOMPARE(storage->validate_calls.load(), 2);
+    QCOMPARE(storage->plan_calls.load(), 1);
+    QCOMPARE(storage->rename_calls.load(), 1);
+    QCOMPARE(storage->renamed_to, QStringLiteral("renamed.gif"));
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+}
+
+void TestGifController::storageErrorsAreReturned()
+{
+    const QUrl container(QStringLiteral("content://test/tree"));
+    const QUrl file(QStringLiteral("content://test/tree/document/1"));
+
+    auto storage = std::make_shared<FakeGifStorage>();
+    storage->items = {{file, QStringLiteral("photo.gif")}};
+    storage->plan = {{}, QStringLiteral("renamed.gif"), true};
+    storage->remove_error = QStringLiteral("delete failed");
+    storage->rename_error = QStringLiteral("rename failed");
+
+    ThumbnailProvider provider;
+    GifController controller(&provider, storage);
+
+    const QString load_error = controller.loadFolder(container);
+    QVERIFY2(load_error.isEmpty(), qPrintable(load_error));
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+
+    QCOMPARE(controller.deleteFile(file), QStringLiteral("delete failed"));
+    QCOMPARE(storage->remove_calls.load(), 1);
+    QCOMPARE(controller.mutatingUrl(), QUrl());
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+
+    QCOMPARE(controller.renameFile(file, QStringLiteral("renamed")),
+             QStringLiteral("rename failed"));
+    QCOMPARE(storage->rename_calls.load(), 1);
+    QCOMPARE(controller.mutatingUrl(), QUrl());
 }
 
 QTEST_GUILESS_MAIN(TestGifController)
