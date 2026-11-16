@@ -15,7 +15,20 @@ PathUtils::PathUtils(QObject *parent)
 
 QUrl PathUtils::fromLocalPath(const QString &path) const
 {
-    return path.isEmpty() ? QUrl() : QUrl::fromLocalFile(path);
+    return fromUserInput(path);
+}
+
+QUrl PathUtils::fromUserInput(const QString &text) const
+{
+    if (text.isEmpty())
+        return {};
+
+    const QUrl url(text);
+    if (url.scheme() == QLatin1String("file")
+        || url.scheme() == QLatin1String("content")) {
+        return url;
+    }
+    return QUrl::fromLocalFile(text);
 }
 
 QString PathUtils::toLocalPath(const QUrl &url) const

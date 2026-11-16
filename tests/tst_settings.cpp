@@ -50,7 +50,7 @@ void TestSettings::init()
 
 void TestSettings::defaultsAreReportedWhenStorageIsEmpty()
 {
-    SettingsManager &settings = SettingsManager::instance();
+    SettingsManager settings;
 
     QCOMPARE(settings.getThumbnailSize(), QSize(210, 170));
     QCOMPARE(settings.getColumns(), 3);
@@ -67,7 +67,7 @@ void TestSettings::defaultsAreReportedWhenStorageIsEmpty()
 
 void TestSettings::valuesRoundTripThroughQSettings()
 {
-    SettingsManager &settings = SettingsManager::instance();
+    SettingsManager settings;
 
     settings.setThumbnailSize(QSize(120, 90));
     settings.setColumns(4);
@@ -104,13 +104,15 @@ void TestSettings::legacyStringDefaultFolderIsMigrated()
     probe.setValue(QStringLiteral("folder/default"), QStringLiteral("/legacy/gifs"));
     probe.sync();
 
-    QCOMPARE(SettingsManager::instance().getDefaultFolderUrl(),
+    SettingsManager settings;
+    QCOMPARE(settings.getDefaultFolderUrl(),
              QUrl::fromLocalFile(QStringLiteral("/legacy/gifs")));
 }
 
 void TestSettings::defaultValuesCoverEverySetting()
 {
-    const QVariantMap values = SettingsManager::instance().defaultValues();
+    SettingsManager settings;
+    const QVariantMap values = settings.defaultValues();
 
     const QStringList expected = {
         QStringLiteral("thumbnailSize"),
@@ -139,7 +141,7 @@ void TestSettings::defaultValuesCoverEverySetting()
 
 void TestSettings::resetToDefaultsRestoresValues()
 {
-    SettingsManager &settings = SettingsManager::instance();
+    SettingsManager settings;
     settings.setColumns(7);
     settings.setThumbnailSize(QSize(400, 300));
     settings.setDefaultFolderUrl(QUrl::fromLocalFile(QStringLiteral("/elsewhere")));
@@ -155,7 +157,7 @@ void TestSettings::resetToDefaultsRestoresValues()
 
 void TestSettings::resetToDefaultsKeepsWindowGeometry()
 {
-    SettingsManager &settings = SettingsManager::instance();
+    SettingsManager settings;
     settings.setWindowGeometry(QRect(1, 2, 3, 4));
 
     settings.resetToDefaults();
@@ -166,7 +168,7 @@ void TestSettings::resetToDefaultsKeepsWindowGeometry()
 
 void TestSettings::widthAndHeightSettersKeepTheOtherDimension()
 {
-    SettingsManager &settings = SettingsManager::instance();
+    SettingsManager settings;
 
     settings.setThumbnailSize(QSize(200, 160));
     settings.setThumbnailWidth(64);
@@ -183,7 +185,7 @@ void TestSettings::widthAndHeightSettersKeepTheOtherDimension()
 
 void TestSettings::signalsAreEmittedOnChange()
 {
-    SettingsManager &settings = SettingsManager::instance();
+    SettingsManager settings;
 
     QSignalSpy columns_changed(&settings, &SettingsManager::columnsChanged);
     QSignalSpy thumbnail_size_changed(&settings, &SettingsManager::thumbnailSizeChanged);
@@ -200,7 +202,7 @@ void TestSettings::signalsAreEmittedOnChange()
 
 void TestSettings::batchUpdateReadsBackValues()
 {
-    SettingsManager &settings = SettingsManager::instance();
+    SettingsManager settings;
 
     settings.beginUpdate();
     settings.setThumbnailSize(QSize(100, 80));

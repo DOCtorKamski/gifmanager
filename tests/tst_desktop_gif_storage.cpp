@@ -1,6 +1,6 @@
 #include <QtTest>
 
-#include "gif_file_operations.h"
+#include "desktop_gif_storage.h"
 
 #include <QDir>
 #include <QFile>
@@ -25,7 +25,7 @@ QUrl localUrl(const QString &path)
 
 } // namespace
 
-class TestGifFileOperations : public QObject
+class TestDesktopGifStorage : public QObject
 {
     Q_OBJECT
 
@@ -40,17 +40,18 @@ private slots:
     void renameFileMovesFile();
 };
 
-void TestGifFileOperations::validateMissingFileReturnsError()
+void TestDesktopGifStorage::validateMissingFileReturnsError()
 {
     QTemporaryDir folder;
     QVERIFY(folder.isValid());
 
-    const QString error = GifFileOperations::validateFile(
+    DesktopGifStorage storage;
+    const QString error = storage.validateFile(
         localUrl(folder.filePath(QStringLiteral("missing.gif"))));
     QVERIFY(!error.isEmpty());
 }
 
-void TestGifFileOperations::removeFileDeletesExistingFile()
+void TestDesktopGifStorage::removeFileDeletesExistingFile()
 {
     QTemporaryDir folder;
     QVERIFY(folder.isValid());
@@ -58,12 +59,13 @@ void TestGifFileOperations::removeFileDeletesExistingFile()
     const QString path = folder.filePath(QStringLiteral("photo.gif"));
     QVERIFY(writeFile(path, "data"));
 
-    QVERIFY(GifFileOperations::validateFile(localUrl(path)).isEmpty());
-    QVERIFY(GifFileOperations::removeFile(localUrl(path)).isEmpty());
+    DesktopGifStorage storage;
+    QVERIFY(storage.validateFile(localUrl(path)).isEmpty());
+    QVERIFY(storage.removeFile(localUrl(path)).isEmpty());
     QVERIFY(!QFile::exists(path));
 }
 
-void TestGifFileOperations::planRenamePreservesExtension()
+void TestDesktopGifStorage::planRenamePreservesExtension()
 {
     QTemporaryDir folder;
     QVERIFY(folder.isValid());
@@ -71,15 +73,16 @@ void TestGifFileOperations::planRenamePreservesExtension()
     const QString path = folder.filePath(QStringLiteral("photo.gif"));
     QVERIFY(writeFile(path, "data"));
 
-    const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(localUrl(path), QStringLiteral("renamed"));
+    DesktopGifStorage storage;
+    const GifStorage::RenamePlan plan =
+        storage.planRename(localUrl(path), QStringLiteral("renamed"));
 
     QVERIFY2(plan.error.isEmpty(), qPrintable(plan.error));
     QVERIFY(plan.changed);
-    QCOMPARE(plan.new_url, localUrl(folder.filePath(QStringLiteral("renamed.gif"))));
+    QCOMPARE(plan.new_display_name, QStringLiteral("renamed.gif"));
 }
 
-void TestGifFileOperations::planRenameSameNameIsNoOp()
+void TestDesktopGifStorage::planRenameSameNameIsNoOp()
 {
     QTemporaryDir folder;
     QVERIFY(folder.isValid());
@@ -87,15 +90,16 @@ void TestGifFileOperations::planRenameSameNameIsNoOp()
     const QString path = folder.filePath(QStringLiteral("photo.gif"));
     QVERIFY(writeFile(path, "data"));
 
-    const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(localUrl(path), QStringLiteral("photo"));
+    DesktopGifStorage storage;
+    const GifStorage::RenamePlan plan =
+        storage.planRename(localUrl(path), QStringLiteral("photo"));
 
     QVERIFY(plan.error.isEmpty());
     QVERIFY(!plan.changed);
-    QVERIFY(plan.new_url.isEmpty());
+    QVERIFY(plan.new_display_name.isEmpty());
 }
 
-void TestGifFileOperations::planRenameRejectsEmptyName()
+void TestDesktopGifStorage::planRenameRejectsEmptyName()
 {
     QTemporaryDir folder;
     QVERIFY(folder.isValid());
@@ -103,14 +107,15 @@ void TestGifFileOperations::planRenameRejectsEmptyName()
     const QString path = folder.filePath(QStringLiteral("photo.gif"));
     QVERIFY(writeFile(path, "data"));
 
-    const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(localUrl(path), QStringLiteral("   "));
+    DesktopGifStorage storage;
+    const GifStorage::RenamePlan plan =
+        storage.planRename(localUrl(path), QStringLiteral("   "));
 
     QVERIFY(!plan.error.isEmpty());
     QVERIFY(!plan.changed);
 }
 
-void TestGifFileOperations::planRenameRejectsInvalidCharacters()
+void TestDesktopGifStorage::planRenameRejectsInvalidCharacters()
 {
     QTemporaryDir folder;
     QVERIFY(folder.isValid());
@@ -118,14 +123,15 @@ void TestGifFileOperations::planRenameRejectsInvalidCharacters()
     const QString path = folder.filePath(QStringLiteral("photo.gif"));
     QVERIFY(writeFile(path, "data"));
 
-    const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(localUrl(path), QStringLiteral("bad/name"));
+    DesktopGifStorage storage;
+    const GifStorage::RenamePlan plan =
+        storage.planRename(localUrl(path), QStringLiteral("bad/name"));
 
     QVERIFY(!plan.error.isEmpty());
     QVERIFY(!plan.changed);
 }
 
-void TestGifFileOperations::planRenameRejectsExistingTarget()
+void TestDesktopGifStorage::planRenameRejectsExistingTarget()
 {
     QTemporaryDir folder;
     QVERIFY(folder.isValid());
@@ -135,14 +141,15 @@ void TestGifFileOperations::planRenameRejectsExistingTarget()
     QVERIFY(writeFile(path, "data"));
     QVERIFY(writeFile(existing, "data"));
 
-    const GifFileOperations::RenamePlan plan =
-        GifFileOperations::planRename(localUrl(path), QStringLiteral("existing"));
+    DesktopGifStorage storage;
+    const GifStorage::RenamePlan plan =
+        storage.planRename(localUrl(path), QStringLiteral("existing"));
 
     QVERIFY(!plan.error.isEmpty());
     QVERIFY(!plan.changed);
 }
 
-void TestGifFileOperations::renameFileMovesFile()
+void TestDesktopGifStorage::renameFileMovesFile()
 {
     QTemporaryDir folder;
     QVERIFY(folder.isValid());
@@ -151,12 +158,13 @@ void TestGifFileOperations::renameFileMovesFile()
     const QString new_path = folder.filePath(QStringLiteral("renamed.gif"));
     QVERIFY(writeFile(path, "data"));
 
-    QVERIFY(GifFileOperations::renameFile(localUrl(path),
-                                          localUrl(new_path)).isEmpty());
+    DesktopGifStorage storage;
+    QVERIFY(storage.renameFile(localUrl(path),
+                               QStringLiteral("renamed.gif")).isEmpty());
     QVERIFY(!QFile::exists(path));
     QVERIFY(QFile::exists(new_path));
 }
 
-QTEST_GUILESS_MAIN(TestGifFileOperations)
+QTEST_GUILESS_MAIN(TestDesktopGifStorage)
 
-#include "tst_gif_file_operations.moc"
+#include "tst_desktop_gif_storage.moc"

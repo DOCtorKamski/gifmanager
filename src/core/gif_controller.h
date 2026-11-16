@@ -59,6 +59,7 @@ private:
     void finishFileMutation();
     void setMutatingUrl(const QUrl &url);
 
+    std::shared_ptr<GifStorage> storage;
     GifLibrary *library = nullptr;
     QUrl mutating_url;
 };

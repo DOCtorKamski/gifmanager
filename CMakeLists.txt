@@ -30,17 +30,23 @@ qt_add_library(gifmanager_core STATIC
     src/core/clipboard_service.h src/core/clipboard_service.cpp
     src/core/desktop_gif_storage.h src/core/desktop_gif_storage.cpp
     src/core/gif_controller.h src/core/gif_controller.cpp
-    src/core/gif_file_operations.h src/core/gif_file_operations.cpp
     src/core/gif_item.h
     src/core/gif_library.h src/core/gif_library.cpp
     src/core/gif_model.h src/core/gif_model.cpp
     src/core/gif_loader_task.h src/core/gif_loader_task.cpp
     src/core/gif_loader_worker.h src/core/gif_loader_worker.cpp
     src/core/gif_storage.h
+    src/core/gif_storage_factory.h src/core/gif_storage_factory.cpp
     src/core/path_utils.h src/core/path_utils.cpp
     src/core/thumbnail_provider.h src/core/thumbnail_provider.cpp
     src/core/settings.h src/core/settings.cpp
 )
+
+if(ANDROID)
+    target_sources(gifmanager_core PRIVATE
+        src/core/android_gif_storage.h src/core/android_gif_storage.cpp
+    )
+endif()
 
 # Public so consumers can keep using #include "gif_controller.h" and friends.
 target_include_directories(gifmanager_core PUBLIC
@@ -75,6 +81,15 @@ target_link_libraries(gifmanager
         Qt::QuickDialogs2
         Qt::QuickLayouts
 )
+
+if(ANDROID)
+    # The Java SAF bridge lives in android/src. The manifest keeps the default
+    # Qt activity/provider declarations while giving the app a stable package.
+    set_target_properties(gifmanager PROPERTIES
+        QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
+        QT_ANDROID_PACKAGE_NAME "org.qtproject.example.gifmanager"
+    )
+endif()
 
 # QML sources live in qml/ but belong to the root of the module, otherwise
 # engine.loadFromModule("gifmanager", "Main") would look for
