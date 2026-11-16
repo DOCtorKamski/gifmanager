@@ -121,6 +121,11 @@ QString GifController::renameFile(const QUrl &url, const QString &new_base_name)
     return operation_error;
 }
 
+QUrl GifController::playbackUrl(const QUrl &fileUrl) const
+{
+    return storage ? storage->playbackUrl(fileUrl) : fileUrl;
+}
+
 void GifController::beginFileMutation(const QUrl &url)
 {
     setMutatingUrl(url);

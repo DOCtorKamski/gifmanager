@@ -82,6 +82,7 @@ ApplicationWindow {
         id: grid
         anchors.fill: parent
         clip: true
+        focus: true
         model: GifController.proxyModel
         cellWidth: Math.max(1, Math.floor((width
                        - (AppSettings.columns - 1) * AppSettings.gridHorizontalSpacing)
@@ -91,6 +92,16 @@ ApplicationWindow {
         cacheBuffer: Math.max(1, cellHeight * 2)
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { }
+
+        // Android back button: dismiss the grid context menu; with the viewer
+        // open, GifViewerWindow handles the key itself. Otherwise let the
+        // event fall through so the app moves to the background.
+        Keys.onBackPressed: function(event) {
+            if (gridContextMenu.opened) {
+                gridContextMenu.dismiss()
+                event.accepted = true
+            }
+        }
 
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad

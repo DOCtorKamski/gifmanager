@@ -13,6 +13,7 @@ public:
     QList<GifItem> listGifs(const QUrl &container,
                             const StopPredicate &shouldStop = {}) override;
     QImage readThumbnail(const QUrl &url, const QSize &size) override;
+    QUrl playbackUrl(const QUrl &url) override;
 
     QString validateFile(const QUrl &url) const override;
     RenamePlan planRename(const QUrl &url,

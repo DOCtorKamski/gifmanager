@@ -43,6 +43,7 @@ public:
     Q_INVOKABLE void setFilterQuery(const QString &query);
     Q_INVOKABLE QString deleteFile(const QUrl &url);
     Q_INVOKABLE QString renameFile(const QUrl &url, const QString &new_base_name);
+    Q_INVOKABLE QUrl playbackUrl(const QUrl &fileUrl) const;
     Q_INVOKABLE void applySettings();
     Q_INVOKABLE void shutdown();
 

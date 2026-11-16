@@ -55,6 +55,12 @@ QImage DesktopGifStorage::readThumbnail(const QUrl &url, const QSize &size)
     return image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 }
 
+QUrl DesktopGifStorage::playbackUrl(const QUrl &url)
+{
+    // Local file URLs are already readable by QML AnimatedImage.
+    return url;
+}
+
 QString DesktopGifStorage::validateFile(const QUrl &url) const
 {
     if (!url.isLocalFile())

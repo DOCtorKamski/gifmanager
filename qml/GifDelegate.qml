@@ -56,8 +56,10 @@ Item {
             id: animation
             anchors.fill: parent
             anchors.margins: 1
+            // playbackUrl() maps content:// URIs to a cached file:// copy on
+            // Android; on desktop it returns the URL unchanged.
             source: (root.onScreen && !root.mutating)
-                    ? root.fileUrl
+                    ? GifController.playbackUrl(root.fileUrl)
                     : ""
             // Pause instead of stopping: QMovie::stop() resets playback to the
             // first frame, while setPaused() resumes from the current frame.
@@ -87,5 +89,17 @@ Item {
 
         onEntered: root.hoverChanged(true)
         onExited: root.hoverChanged(false)
+    }
+
+    // Touch equivalent of the MouseArea above. ReleaseWithinBounds takes the
+    // exclusive grab on press, so the MouseArea never sees synthesized clicks
+    // while this handler is enabled.
+    TapHandler {
+        enabled: Qt.platform.os === "android"
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+
+        onTapped: root.openRequested()
+        onLongPressed: root.contextMenuRequested(point.scenePosition.x,
+                                                point.scenePosition.y)
     }
 }
