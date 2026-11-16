@@ -38,6 +38,7 @@ private slots:
     void planRenameRejectsInvalidCharacters();
     void planRenameRejectsExistingTarget();
     void renameFileMovesFile();
+    void playbackUrlReturnsSameUrl();
 };
 
 void TestDesktopGifStorage::validateMissingFileReturnsError()
@@ -163,6 +164,15 @@ void TestDesktopGifStorage::renameFileMovesFile()
                                QStringLiteral("renamed.gif")).isEmpty());
     QVERIFY(!QFile::exists(path));
     QVERIFY(QFile::exists(new_path));
+}
+
+void TestDesktopGifStorage::playbackUrlReturnsSameUrl()
+{
+    DesktopGifStorage storage;
+    const QUrl url = localUrl(QStringLiteral("/tmp/photo.gif"));
+    QCOMPARE(storage.playbackUrl(url), url);
+    QCOMPARE(storage.playbackUrl(QUrl(QStringLiteral("http://x/y.gif"))),
+             QUrl(QStringLiteral("http://x/y.gif")));
 }
 
 QTEST_GUILESS_MAIN(TestDesktopGifStorage)

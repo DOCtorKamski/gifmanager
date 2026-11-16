@@ -33,6 +33,13 @@ public:
                                     const StopPredicate &shouldStop = {}) = 0;
     virtual QImage readThumbnail(const QUrl &url, const QSize &size) = 0;
 
+    // Returns a URL the QML AnimatedImage can open for full animation.
+    // Desktop returns the input unchanged; Android caches the document bytes
+    // in the app cache directory (pre-warmed by readThumbnail()) and returns
+    // the cached file:// URL, because AnimatedImage cannot open content://
+    // URIs directly.
+    virtual QUrl playbackUrl(const QUrl &url) = 0;
+
     // File mutations are platform-specific (local files on desktop, SAF on
     // Android). The controller validates before it removes the model row and
     // then calls removeFile()/renameFile() to perform the operation.

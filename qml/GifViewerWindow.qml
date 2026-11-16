@@ -52,7 +52,9 @@ Window {
                 AnimatedImage {
                     id: viewerImage
                     anchors.fill: parent
-                    source: root.fileUrl
+                    // playbackUrl() maps content:// URIs to a cached file://
+                    // copy on Android; on desktop it returns the URL unchanged.
+                    source: GifController.playbackUrl(root.fileUrl)
                     playing: true
                     paused: !root.visible
                     fillMode: AnimatedImage.PreserveAspectFit
@@ -82,6 +84,20 @@ Window {
                     viewerMenu.popup()
             }
         }
+
+        // Touch equivalents: tap anywhere closes the viewer, long-press opens
+        // the context menu.
+        TapHandler {
+            enabled: Qt.platform.os === "android"
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+
+            onTapped: root.closeRequested()
+            onLongPressed: viewerMenu.popup()
+        }
+
+        // Android back button closes the viewer before it can pause the app.
+        focus: true
+        Keys.onBackPressed: root.closeRequested()
 
         Menu {
             id: viewerMenu

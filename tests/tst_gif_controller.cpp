@@ -71,6 +71,12 @@ public:
 
     QImage readThumbnail(const QUrl &, const QSize &) override { return {}; }
 
+    QUrl playbackUrl(const QUrl &url) override
+    {
+        ++playback_calls;
+        return playback_url;
+    }
+
     QString validateFile(const QUrl &) const override
     {
         ++validate_calls;
@@ -102,12 +108,14 @@ public:
     QString remove_error;
     QString rename_error;
     QString renamed_to;
+    QUrl playback_url;
 
     mutable std::atomic_int list_calls{0};
     mutable std::atomic_int validate_calls{0};
     mutable std::atomic_int plan_calls{0};
     mutable std::atomic_int remove_calls{0};
     mutable std::atomic_int rename_calls{0};
+    mutable std::atomic_int playback_calls{0};
 };
 
 } // namespace
@@ -129,6 +137,7 @@ private slots:
     void reloadPicksUpExternalFiles();
     void mutationsAreDelegatedToStorage();
     void storageErrorsAreReturned();
+    void playbackUrlIsDelegatedToStorage();
 
 private:
     QTemporaryDir settings_dir;
@@ -398,6 +407,24 @@ void TestGifController::storageErrorsAreReturned()
              QStringLiteral("rename failed"));
     QCOMPARE(storage->rename_calls.load(), 1);
     QCOMPARE(controller.mutatingUrl(), QUrl());
+}
+
+void TestGifController::playbackUrlIsDelegatedToStorage()
+{
+    const QUrl container(QStringLiteral("content://test/tree"));
+    const QUrl file(QStringLiteral("content://test/tree/document/1"));
+
+    auto storage = std::make_shared<FakeGifStorage>();
+    const QUrl cached(QStringLiteral("file:///data/cache/playback/x.gif"));
+    storage->playback_url = cached;
+
+    ThumbnailProvider provider;
+    GifController controller(&provider, storage);
+
+    const QUrl result = controller.playbackUrl(file);
+
+    QCOMPARE(storage->playback_calls.load(), 1);
+    QCOMPARE(result, cached);
 }
 
 QTEST_GUILESS_MAIN(TestGifController)

@@ -1,11 +1,15 @@
 #include "android_gif_storage.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
+#include <QDir>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QJniEnvironment>
 #include <QJniObject>
 #include <QRegularExpression>
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <QStringList>
 
 #include <algorithm>
@@ -108,7 +112,48 @@ QByteArray readContent(const QUrl &url)
     return data;
 }
 
+// Playback cache: QML AnimatedImage cannot open content:// URIs, so each GIF
+// is copied to a per-session cache file and served as a file:// URL. Copies
+// are pre-warmed by readThumbnail() on the loader thread; playbackUrl() only
+// reads SAF data when the copy is still missing.
+QString playbackCacheDir()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+           + QLatin1String("/playback");
+}
+
+QString playbackFilePath(const QUrl &url)
+{
+    const QString hex = QString::fromLatin1(
+        QCryptographicHash::hash(url.toString().toUtf8(),
+                                 QCryptographicHash::Sha1).toHex());
+    return playbackCacheDir() + QLatin1Char('/') + hex
+           + QLatin1String(".gif");
+}
+
+QUrl writePlaybackCopy(const QUrl &url, const QByteArray &data)
+{
+    const QString path = playbackFilePath(url);
+    if (QFileInfo::exists(path))
+        return QUrl::fromLocalFile(path);
+
+    QDir().mkpath(playbackCacheDir());
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size()
+        || !file.commit()) {
+        return url;
+    }
+    return QUrl::fromLocalFile(path);
+}
+
 } // namespace
+
+AndroidGifStorage::AndroidGifStorage()
+{
+    // Playback cache copies are only valid for one session: clear them so
+    // deleted/renamed documents cannot keep serving stale content.
+    QDir(playbackCacheDir()).removeRecursively();
+}
 
 bool AndroidGifStorage::exists(const QUrl &container) const
 {
@@ -174,6 +219,10 @@ QImage AndroidGifStorage::readThumbnail(const QUrl &url, const QSize &size)
     if (data.isEmpty())
         return {};
 
+    // Pre-warm the playback cache on the loader thread so QML never has to
+    // read the whole document synchronously before animating.
+    writePlaybackCopy(url, data);
+
     QBuffer buffer;
     buffer.setData(data);
     if (!buffer.open(QIODevice::ReadOnly))
@@ -186,6 +235,26 @@ QImage AndroidGifStorage::readThumbnail(const QUrl &url, const QSize &size)
         return {};
 
     return image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+}
+
+QUrl AndroidGifStorage::playbackUrl(const QUrl &url)
+{
+    if (url.isLocalFile())
+        return desktop.playbackUrl(url);
+    if (url.scheme() != QLatin1String("content"))
+        return url;
+
+    const QString path = playbackFilePath(url);
+    if (QFileInfo::exists(path))
+        return QUrl::fromLocalFile(path);
+
+    // The copy is normally pre-warmed by readThumbnail(); this synchronous
+    // fallback keeps playback working when a thumbnail was skipped (e.g.
+    // cancelled load).
+    const QByteArray data = readContent(url);
+    if (data.isEmpty())
+        return url;
+    return writePlaybackCopy(url, data);
 }
 
 QString AndroidGifStorage::validateFile(const QUrl &url) const
