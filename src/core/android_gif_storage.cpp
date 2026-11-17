@@ -1,5 +1,6 @@
 #include "android_gif_storage.h"
 
+#include <QDebug>
 #include <QBuffer>
 #include <QCryptographicHash>
 #include <QDir>
@@ -63,8 +64,12 @@ QStringList listContent(const QUrl &container)
         "(Landroid/content/Context;Ljava/lang/String;)[Ljava/lang/String;",
         context.object(), uri.object());
 
-    if (!result.isValid())
+    if (!result.isValid()) {
+        // The Java helper returns null on failure and an empty array for an
+        // empty folder; log the failure so it is not mistaken for "No GIFs".
+        qWarning() << "SafStorage.listGifs failed for" << container.toString();
         return {};
+    }
 
     QJniEnvironment env;
     auto array = static_cast<jobjectArray>(result.object());

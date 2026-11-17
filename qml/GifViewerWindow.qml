@@ -107,6 +107,12 @@ Window {
         Menu {
             id: viewerMenu
             MenuItem {
+                text: qsTr("Share")
+                visible: Qt.platform.os === "android"
+                height: visible ? implicitHeight : 0
+                onTriggered: ClipboardService.shareFile(root.fileUrl)
+            }
+            MenuItem {
                 text: qsTr("Copy GIF")
                 onTriggered: root.copyRequested()
             }
