@@ -11,6 +11,7 @@ public:
     static ClipboardService &instance();
 
     Q_INVOKABLE void copyFile(const QUrl &url);
+    Q_INVOKABLE void shareFile(const QUrl &url);
 
 private:
     explicit ClipboardService(QObject *parent = nullptr);

@@ -178,6 +178,12 @@ ApplicationWindow {
     Menu {
         id: gridContextMenu
         MenuItem {
+            text: qsTr("Share")
+            visible: Qt.platform.os === "android"
+            height: visible ? implicitHeight : 0
+            onTriggered: ClipboardService.shareFile(root.contextMenuUrl)
+        }
+        MenuItem {
             text: qsTr("Copy GIF")
             onTriggered: ClipboardService.copyFile(root.contextMenuUrl)
         }

@@ -77,3 +77,27 @@ void ClipboardService::copyFile(const QUrl &url)
     QGuiApplication::clipboard()->setMimeData(mime);
 #endif
 }
+
+void ClipboardService::shareFile(const QUrl &url)
+{
+    Q_UNUSED(url);
+#ifdef Q_OS_ANDROID
+    // Android: hand the document URI to the system share sheet. The read
+    // permission grant travels with the intent, so the receiving app loads
+    // the GIF from the source provider.
+    if (url.scheme() != QLatin1String("content"))
+        return;
+
+    const QString name = QUrl::fromPercentEncoding(url.fileName().toUtf8());
+    const QJniObject context =
+        QNativeInterface::QAndroidApplication::context();
+    const QJniObject uri = QJniObject::fromString(url.toString());
+    const QJniObject label = QJniObject::fromString(
+        name.isEmpty() ? QStringLiteral("GIF") : name);
+
+    QJniObject::callStaticMethod<jboolean>(
+        CLIPBOARD_BRIDGE_CLASS, "shareDocument",
+        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Z",
+        context.object(), uri.object(), label.object());
+#endif
+}

@@ -76,7 +76,7 @@ public final class SafStorage {
         final Uri tree = parseUri(treeUri);
         final Uri children = tree != null ? childDocumentsUri(tree) : null;
         if (children == null) {
-            return new String[0];
+            return null;
         }
 
         final List<String[]> entries = new ArrayList<>();
@@ -87,7 +87,7 @@ public final class SafStorage {
                 DocumentsContract.Document.COLUMN_MIME_TYPE
         }, null, null, null)) {
             if (cursor == null) {
-                return new String[0];
+                return null;
             }
 
             final int idIndex = cursor.getColumnIndex(
@@ -97,7 +97,7 @@ public final class SafStorage {
             final int mimeIndex = cursor.getColumnIndex(
                     DocumentsContract.Document.COLUMN_MIME_TYPE);
             if (idIndex < 0 || nameIndex < 0) {
-                return new String[0];
+                return null;
             }
 
             while (cursor.moveToNext()) {
@@ -113,8 +113,8 @@ public final class SafStorage {
                 final Uri document = documentUri(tree, documentId);
                 entries.add(new String[]{document.toString(), name});
             }
-        } catch (Exception ignored) {
-            return new String[0];
+        } catch (Exception e) {
+            return null;
         }
 
         Collections.sort(entries, new Comparator<String[]>() {

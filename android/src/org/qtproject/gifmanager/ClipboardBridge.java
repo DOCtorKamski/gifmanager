@@ -3,6 +3,7 @@ package org.qtproject.gifmanager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 
 /**
@@ -31,6 +32,27 @@ public final class ClipboardBridge {
             final ClipData clip = ClipData.newUri(
                     app.getContentResolver(), label, Uri.parse(documentUri));
             manager.setPrimaryClip(clip);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Opens the Android share sheet for the document URI. The read grant
+     * travels with the intent, so the receiving app can read the GIF from
+     * the source provider without any byte copying. NEW_TASK keeps the call
+     * valid even when the context is not an Activity.
+     */
+    public static boolean shareDocument(Context context, String documentUri,
+                                        String label) {
+        try {
+            final Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("image/gif");
+            send.putExtra(Intent.EXTRA_STREAM, Uri.parse(documentUri));
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                  | Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(Intent.createChooser(send, label));
             return true;
         } catch (Exception ignored) {
             return false;
