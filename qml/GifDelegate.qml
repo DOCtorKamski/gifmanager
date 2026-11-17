@@ -74,11 +74,20 @@ Item {
     }
 
     MouseArea {
+        id: interaction
         anchors.fill: frame
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
+        // Touch events arrive here as synthesized mouse clicks on Android,
+        // so the desktop mouse behavior doubles as touch: tap opens,
+        // long-press opens the context menu.
+        property bool longPress: false
 
         onClicked: function(mouse) {
+            if (interaction.longPress) {
+                interaction.longPress = false
+                return
+            }
             if (mouse.button === Qt.LeftButton) {
                 root.openRequested()
             } else {
@@ -87,19 +96,15 @@ Item {
             }
         }
 
+        onPressAndHold: function(mouse) {
+            interaction.longPress = true
+            const p = mapToItem(null, mouse.x, mouse.y)
+            root.contextMenuRequested(p.x, p.y)
+        }
+
+        onCanceled: interaction.longPress = false
+
         onEntered: root.hoverChanged(true)
         onExited: root.hoverChanged(false)
-    }
-
-    // Touch equivalent of the MouseArea above. ReleaseWithinBounds takes the
-    // exclusive grab on press, so the MouseArea never sees synthesized clicks
-    // while this handler is enabled.
-    TapHandler {
-        enabled: Qt.platform.os === "android"
-        gesturePolicy: TapHandler.ReleaseWithinBounds
-
-        onTapped: root.openRequested()
-        onLongPressed: root.contextMenuRequested(point.scenePosition.x,
-                                                point.scenePosition.y)
     }
 }
