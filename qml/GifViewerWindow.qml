@@ -74,25 +74,30 @@ Window {
         }
 
         MouseArea {
+            id: closeArea
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton | Qt.RightButton
+            // Touch events arrive here as synthesized mouse clicks on
+            // Android: tap closes the viewer, long-press opens the menu.
+            property bool longPress: false
 
             onClicked: function(mouse) {
+                if (closeArea.longPress) {
+                    closeArea.longPress = false
+                    return
+                }
                 if (mouse.button === Qt.LeftButton)
                     root.closeRequested()
                 else
                     viewerMenu.popup()
             }
-        }
 
-        // Touch equivalents: tap anywhere closes the viewer, long-press opens
-        // the context menu.
-        TapHandler {
-            enabled: Qt.platform.os === "android"
-            gesturePolicy: TapHandler.ReleaseWithinBounds
+            onPressAndHold: function(mouse) {
+                closeArea.longPress = true
+                viewerMenu.popup(mouse.x, mouse.y)
+            }
 
-            onTapped: root.closeRequested()
-            onLongPressed: viewerMenu.popup()
+            onCanceled: closeArea.longPress = false
         }
 
         // Android back button closes the viewer before it can pause the app.
