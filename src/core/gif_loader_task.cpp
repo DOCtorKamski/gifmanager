@@ -42,6 +42,11 @@ void GifLoaderTask::start()
                 if (!cancelled)
                     emit filesDiscovered(items);
             }, Qt::QueuedConnection);
+    connect(worker.get(), &GifLoaderWorker::discoveryFailed, this,
+            [this](const QString &error) {
+                if (!cancelled)
+                    emit discoveryFailed(error);
+            }, Qt::QueuedConnection);
     connect(worker.get(), &GifLoaderWorker::gifLoaded, this,
             [this](const QUrl &url, const QImage &thumbnail) {
                 if (!cancelled)

@@ -3,6 +3,7 @@
 
 #include "desktop_gif_storage.h"
 #include "gif_storage.h"
+#include "playback_cache.h"
 
 #include <QCoreApplication>
 
@@ -17,8 +18,8 @@ public:
     AndroidGifStorage();
 
     bool exists(const QUrl &container) const override;
-    QList<GifItem> listGifs(const QUrl &container,
-                            const StopPredicate &shouldStop = {}) override;
+    Listing listGifs(const QUrl &container,
+                     const StopPredicate &shouldStop = {}) override;
     QImage readThumbnail(const QUrl &url, const QSize &size) override;
     QUrl playbackUrl(const QUrl &url) override;
 
@@ -31,6 +32,7 @@ public:
 
 private:
     DesktopGifStorage desktop;
+    PlaybackCache playback_cache;
 };
 
 #endif // ANDROID_GIF_STORAGE_H

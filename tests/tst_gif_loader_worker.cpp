@@ -38,6 +38,19 @@ std::shared_ptr<GifStorage> desktopStorage()
     return std::make_shared<DesktopGifStorage>();
 }
 
+// DesktopGifStorage with a forced listing failure, so the error path can be
+// exercised without a real unreadable directory.
+class FailingStorage : public DesktopGifStorage
+{
+public:
+    Listing listGifs(const QUrl &, const StopPredicate &) override
+    {
+        Listing listing;
+        listing.error = QStringLiteral("Folder cannot be read.");
+        return listing;
+    }
+};
+
 QList<GifItem> itemsFor(const QStringList &paths)
 {
     QList<GifItem> items;
@@ -59,6 +72,7 @@ private slots:
     void explicitFileListSkipsScan();
     void stopRequestBeforeProcessEmitsNoResults();
     void invalidImageProducesPlaceholder();
+    void listingFailureEmitsDiscoveryFailed();
 };
 
 void TestGifLoaderWorker::scansOnlyGifFiles()
@@ -204,6 +218,26 @@ void TestGifLoaderWorker::invalidImageProducesPlaceholder()
 
     QCOMPARE(loaded.count(), 1);
     QCOMPARE(loaded.first().at(1).value<QImage>().size(), QSize(12, 9));
+}
+
+void TestGifLoaderWorker::listingFailureEmitsDiscoveryFailed()
+{
+    GifLoaderWorker worker(GifLoadRequest::fromContainer(
+        QUrl(QStringLiteral("file:///does/not/matter")), QSize(8, 8),
+        std::make_shared<FailingStorage>()));
+    QSignalSpy discovered(&worker, &GifLoaderWorker::filesDiscovered);
+    QSignalSpy failed(&worker, &GifLoaderWorker::discoveryFailed);
+    QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
+    QSignalSpy finished(&worker, &GifLoaderWorker::finished);
+
+    worker.process();
+
+    QCOMPARE(discovered.count(), 0);
+    QCOMPARE(loaded.count(), 0);
+    QCOMPARE(failed.count(), 1);
+    QCOMPARE(failed.first().at(0).toString(),
+             QStringLiteral("Folder cannot be read."));
+    QCOMPARE(finished.count(), 1);
 }
 
 QTEST_GUILESS_MAIN(TestGifLoaderWorker)

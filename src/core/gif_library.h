@@ -49,9 +49,13 @@ signals:
     void progressChanged();
     void currentFolderChanged();
     void filterCleared();
+    // The current folder could not be listed (revoked permission, unreadable
+    // directory). The model stays empty and loading still finishes normally.
+    void loadFailed(const QString &message);
 
 private slots:
     void onFilesDiscovered(const QList<GifItem> &items);
+    void onDiscoveryFailed(const QString &error);
     void onGifLoaded(const QUrl &url, const QImage &image);
     void onProgress(int current, int total);
     void onFinished();

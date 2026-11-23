@@ -23,6 +23,7 @@ public:
 
 signals:
     void filesDiscovered(const QList<GifItem> &items);
+    void discoveryFailed(const QString &error);
     void gifLoaded(const QUrl &url, const QImage &thumbnail);
     void progress(int current, int total);
     void finished();

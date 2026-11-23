@@ -57,13 +57,23 @@ void GifLoaderWorker::process()
     QList<GifItem> files = request.files;
 
     if (request.source == GifLoadRequest::Source::Container) {
-        files = request.storage->listGifs(
+        const GifStorage::Listing listing = request.storage->listGifs(
             request.container, [this] { return shouldStop(); });
         if (shouldStop()) {
             emit finished();
             return;
         }
 
+        if (listing.failed()) {
+            // The folder exists (the library checks that before starting) but
+            // cannot be listed, e.g. revoked SAF permission. Report it so the
+            // UI does not silently show an empty grid.
+            emit discoveryFailed(listing.error);
+            emit finished();
+            return;
+        }
+
+        files = listing.items;
         emit filesDiscovered(files);
     }
 

@@ -14,30 +14,46 @@ bool DesktopGifStorage::exists(const QUrl &container) const
     return container.isLocalFile() && QDir(container.toLocalFile()).exists();
 }
 
-QList<GifItem> DesktopGifStorage::listGifs(const QUrl &container,
-                                           const StopPredicate &shouldStop)
+GifStorage::Listing DesktopGifStorage::listGifs(const QUrl &container,
+                                                const StopPredicate &shouldStop)
 {
-    QList<GifItem> items;
+    Listing listing;
 
-    if (!container.isLocalFile())
-        return items;
+    if (!container.isLocalFile()) {
+        listing.error = tr("Unsupported location.");
+        return listing;
+    }
 
-    QDirIterator iterator(container.toLocalFile(), {"*.gif", "*.GIF"}, QDir::Files);
+    const QString path = container.toLocalFile();
+    const QFileInfo folder(path);
+    if (!folder.exists() || !folder.isDir()) {
+        listing.error = tr("Folder not found: %1").arg(path);
+        return listing;
+    }
+    // QDirIterator silently yields nothing for unreadable folders, which would
+    // look like an empty folder; report it instead.
+    if (!folder.isReadable()) {
+        listing.error = tr("Folder cannot be read: %1").arg(path);
+        return listing;
+    }
+
+    QDirIterator iterator(path, {"*.gif", "*.GIF"}, QDir::Files);
     while (iterator.hasNext()) {
         if (shouldStop && shouldStop())
             break;
 
         iterator.next();
         const QFileInfo info = iterator.fileInfo();
-        items.append({QUrl::fromLocalFile(info.absoluteFilePath()), info.fileName()});
+        listing.items.append(
+            {QUrl::fromLocalFile(info.absoluteFilePath()), info.fileName()});
     }
 
-    std::sort(items.begin(), items.end(),
+    std::sort(listing.items.begin(), listing.items.end(),
               [](const GifItem &lhs, const GifItem &rhs) {
                   return lhs.fileName < rhs.fileName;
               });
 
-    return items;
+    return listing;
 }
 
 QImage DesktopGifStorage::readThumbnail(const QUrl &url, const QSize &size)

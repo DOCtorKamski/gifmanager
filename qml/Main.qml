@@ -297,6 +297,10 @@ ApplicationWindow {
             root.hoveredUrl = ""
         }
 
+        function onLoadFailed(message) {
+            root.showError(message)
+        }
+
         function onFileAboutToChange(url) {
             if (root.hoveredUrl.toString() === url.toString())
                 root.hoveredUrl = ""

@@ -63,10 +63,12 @@ class FakeGifStorage : public GifStorage
 public:
     bool exists(const QUrl &) const override { return true; }
 
-    QList<GifItem> listGifs(const QUrl &, const StopPredicate &) override
+    Listing listGifs(const QUrl &, const StopPredicate &) override
     {
         ++list_calls;
-        return items;
+        Listing listing;
+        listing.items = items;
+        return listing;
     }
 
     QImage readThumbnail(const QUrl &, const QSize &) override { return {}; }

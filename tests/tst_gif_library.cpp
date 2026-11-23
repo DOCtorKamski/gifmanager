@@ -1,5 +1,6 @@
 #include <QtTest>
 
+#include "desktop_gif_storage.h"
 #include "gif_library.h"
 #include "gif_model.h"
 #include "settings.h"
@@ -11,7 +12,22 @@
 #include <QTemporaryDir>
 #include <QUrl>
 
+#include <memory>
+
 namespace {
+
+// DesktopGifStorage with a forced listing failure so the asynchronous error
+// path can be tested without an unreadable directory.
+class FailingStorage : public DesktopGifStorage
+{
+public:
+    Listing listGifs(const QUrl &, const StopPredicate &) override
+    {
+        Listing listing;
+        listing.error = QStringLiteral("Folder cannot be read.");
+        return listing;
+    }
+};
 
 QByteArray tinyGif()
 {
@@ -57,6 +73,7 @@ private slots:
     void reentrantLoadFromProgressChangedKeepsLatestFolder();
     void loadFolderReplacesPreviousLoad();
     void shutdownWhileLoadingStopsTask();
+    void listingFailureEmitsLoadFailed();
 
 private:
     QTemporaryDir settings_dir;
@@ -226,6 +243,28 @@ void TestGifLibrary::shutdownWhileLoadingStopsTask()
     library.shutdown();
     QTest::qWait(50);
     QVERIFY(!library.isLoading());
+}
+
+void TestGifLibrary::listingFailureEmitsLoadFailed()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+
+    ThumbnailProvider provider;
+    GifLibrary library(&provider, std::make_shared<FailingStorage>());
+
+    QSignalSpy failed(&library, &GifLibrary::loadFailed);
+
+    const QString error = library.loadFolder(QUrl::fromLocalFile(folder.path()));
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QVERIFY(library.isLoading());
+
+    QTRY_VERIFY_WITH_TIMEOUT(!library.isLoading(), 10000);
+
+    QCOMPARE(failed.count(), 1);
+    QCOMPARE(failed.first().at(0).toString(),
+             QStringLiteral("Folder cannot be read."));
+    QCOMPARE(library.proxyModel()->rowCount(), 0);
 }
 
 QTEST_GUILESS_MAIN(TestGifLibrary)

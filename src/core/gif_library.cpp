@@ -131,6 +131,8 @@ void GifLibrary::startLoading()
     current_task = task;
     connect(task, &GifLoaderTask::filesDiscovered,
             this, &GifLibrary::onFilesDiscovered);
+    connect(task, &GifLoaderTask::discoveryFailed,
+            this, &GifLibrary::onDiscoveryFailed);
     connect(task, &GifLoaderTask::gifLoaded,
             this, &GifLibrary::onGifLoaded);
     connect(task, &GifLoaderTask::progress,
@@ -184,6 +186,16 @@ void GifLibrary::onFilesDiscovered(const QList<GifItem> &items)
     gif_model->resetFiles(items);
 
     setProgress(0, items.size());
+}
+
+void GifLibrary::onDiscoveryFailed(const QString &error)
+{
+    if (!current_task)
+        return;
+
+    // The worker emits finished() right after this, so the normal completion
+    // path still runs; only the model stays empty.
+    emit loadFailed(error);
 }
 
 void GifLibrary::onGifLoaded(const QUrl &url, const QImage &image)

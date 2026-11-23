@@ -26,6 +26,8 @@ GifController::GifController(ThumbnailProvider *provider,
             this, &GifController::currentFolderChanged);
     connect(library, &GifLibrary::filterCleared,
             this, &GifController::filterCleared);
+    connect(library, &GifLibrary::loadFailed,
+            this, &GifController::loadFailed);
 }
 
 GifController::~GifController()
