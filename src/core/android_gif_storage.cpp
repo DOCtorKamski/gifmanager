@@ -1,42 +1,22 @@
 #include "android_gif_storage.h"
+#include "jni_util.h"
 
 #include <QDebug>
 #include <QBuffer>
-#include <QCryptographicHash>
-#include <QDir>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QJniEnvironment>
-#include <QJniObject>
 #include <QRegularExpression>
-#include <QSaveFile>
-#include <QStandardPaths>
 #include <QStringList>
 
 #include <algorithm>
 
 namespace {
 
-constexpr const char *SAF_STORAGE_CLASS = "org/qtproject/gifmanager/SafStorage";
-
-QJniObject androidContext()
-{
-    return QNativeInterface::QAndroidApplication::context();
-}
-
-QString jniString(const QJniObject &value)
-{
-    return value.isValid() ? value.toString() : QString();
-}
-
 QString displayNameFor(const QUrl &url)
 {
-    const QJniObject context = androidContext();
-    const QJniObject uri = QJniObject::fromString(url.toString());
-    return jniString(QJniObject::callStaticObjectMethod(
-        SAF_STORAGE_CLASS, "displayName",
-        "(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;",
-        context.object(), uri.object()));
+    return jni::string(
+        jni::callStaticString(jni::SAF_STORAGE_CLASS, "displayName", url));
 }
 
 bool documentExists(const QUrl &url)
@@ -46,36 +26,31 @@ bool documentExists(const QUrl &url)
 
 bool childExists(const QUrl &url, const QString &display_name)
 {
-    const QJniObject context = androidContext();
-    const QJniObject uri = QJniObject::fromString(url.toString());
-    const QJniObject name = QJniObject::fromString(display_name);
-    return QJniObject::callStaticMethod<jboolean>(
-        SAF_STORAGE_CLASS, "childExists",
-        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Z",
-        context.object(), uri.object(), name.object());
+    return jni::callStaticBool(jni::SAF_STORAGE_CLASS, "childExists", url,
+                               display_name);
 }
 
-QStringList listContent(const QUrl &container)
+bool listContent(const QUrl &container, QStringList *values)
 {
-    const QJniObject context = androidContext();
+    const QJniObject context = jni::androidContext();
     const QJniObject uri = QJniObject::fromString(container.toString());
     const QJniObject result = QJniObject::callStaticObjectMethod(
-        SAF_STORAGE_CLASS, "listGifs",
+        jni::SAF_STORAGE_CLASS, "listGifs",
         "(Landroid/content/Context;Ljava/lang/String;)[Ljava/lang/String;",
         context.object(), uri.object());
 
     if (!result.isValid()) {
         // The Java helper returns null on failure and an empty array for an
-        // empty folder; log the failure so it is not mistaken for "No GIFs".
+        // empty folder; the caller turns this into a user-visible error.
         qWarning() << "SafStorage.listGifs failed for" << container.toString();
-        return {};
+        return false;
     }
 
     QJniEnvironment env;
     auto array = static_cast<jobjectArray>(result.object());
     const jsize count = env->GetArrayLength(array);
-    QStringList values;
-    values.reserve(count);
+    values->clear();
+    values->reserve(count);
 
     for (jsize i = 0; i < count; ++i) {
         // fromLocalRef() adopts the local ref, so the element does not need a
@@ -83,21 +58,21 @@ QStringList listContent(const QUrl &container)
         // file names correctly.
         auto element = env->GetObjectArrayElement(array, i);
         if (!element) {
-            values.append(QString());
+            values->append(QString());
             continue;
         }
-        values.append(QJniObject::fromLocalRef(element).toString());
+        values->append(QJniObject::fromLocalRef(element).toString());
     }
 
-    return values;
+    return true;
 }
 
 QByteArray readContent(const QUrl &url)
 {
-    const QJniObject context = androidContext();
+    const QJniObject context = jni::androidContext();
     const QJniObject uri = QJniObject::fromString(url.toString());
     const QJniObject result = QJniObject::callStaticObjectMethod(
-        SAF_STORAGE_CLASS, "readFile",
+        jni::SAF_STORAGE_CLASS, "readFile",
         "(Landroid/content/Context;Ljava/lang/String;)[B",
         context.object(), uri.object());
 
@@ -117,48 +92,9 @@ QByteArray readContent(const QUrl &url)
     return data;
 }
 
-// Playback cache: QML AnimatedImage cannot open content:// URIs, so each GIF
-// is copied to a per-session cache file and served as a file:// URL. Copies
-// are pre-warmed by readThumbnail() on the loader thread; playbackUrl() only
-// reads SAF data when the copy is still missing.
-QString playbackCacheDir()
-{
-    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
-           + QLatin1String("/playback");
-}
-
-QString playbackFilePath(const QUrl &url)
-{
-    const QString hex = QString::fromLatin1(
-        QCryptographicHash::hash(url.toString().toUtf8(),
-                                 QCryptographicHash::Sha1).toHex());
-    return playbackCacheDir() + QLatin1Char('/') + hex
-           + QLatin1String(".gif");
-}
-
-QUrl writePlaybackCopy(const QUrl &url, const QByteArray &data)
-{
-    const QString path = playbackFilePath(url);
-    if (QFileInfo::exists(path))
-        return QUrl::fromLocalFile(path);
-
-    QDir().mkpath(playbackCacheDir());
-    QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size()
-        || !file.commit()) {
-        return url;
-    }
-    return QUrl::fromLocalFile(path);
-}
-
 } // namespace
 
-AndroidGifStorage::AndroidGifStorage()
-{
-    // Playback cache copies are only valid for one session: clear them so
-    // deleted/renamed documents cannot keep serving stale content.
-    QDir(playbackCacheDir()).removeRecursively();
-}
+AndroidGifStorage::AndroidGifStorage() = default;
 
 bool AndroidGifStorage::exists(const QUrl &container) const
 {
@@ -167,33 +103,33 @@ bool AndroidGifStorage::exists(const QUrl &container) const
     if (container.scheme() != QLatin1String("content"))
         return false;
 
-    const QJniObject context = androidContext();
-    const QJniObject uri = QJniObject::fromString(container.toString());
-
     // The native folder dialog grants persistable access; taking it again is
     // harmless and also covers URIs restored from settings after a restart.
-    QJniObject::callStaticMethod<jboolean>(
-        SAF_STORAGE_CLASS, "takePersistablePermission",
-        "(Landroid/content/Context;Ljava/lang/String;)Z",
-        context.object(), uri.object());
+    jni::callStaticBool(jni::SAF_STORAGE_CLASS, "takePersistablePermission",
+                        container);
 
-    return QJniObject::callStaticMethod<jboolean>(
-        SAF_STORAGE_CLASS, "isReadable",
-        "(Landroid/content/Context;Ljava/lang/String;)Z",
-        context.object(), uri.object());
+    return jni::callStaticBool(jni::SAF_STORAGE_CLASS, "isReadable", container);
 }
 
-QList<GifItem> AndroidGifStorage::listGifs(const QUrl &container,
-                                           const StopPredicate &shouldStop)
+GifStorage::Listing AndroidGifStorage::listGifs(const QUrl &container,
+                                                const StopPredicate &shouldStop)
 {
     if (container.isLocalFile())
         return desktop.listGifs(container, shouldStop);
-    if (container.scheme() != QLatin1String("content"))
-        return {};
 
-    const QStringList values = listContent(container);
-    QList<GifItem> items;
-    items.reserve(values.size() / 2);
+    Listing listing;
+    if (container.scheme() != QLatin1String("content")) {
+        listing.error = tr("Unsupported location.");
+        return listing;
+    }
+
+    QStringList values;
+    if (!listContent(container, &values)) {
+        listing.error = tr("Folder cannot be read: %1").arg(container.toString());
+        return listing;
+    }
+
+    listing.items.reserve(values.size() / 2);
 
     for (qsizetype i = 0; i + 1 < values.size(); i += 2) {
         if (shouldStop && shouldStop())
@@ -202,15 +138,15 @@ QList<GifItem> AndroidGifStorage::listGifs(const QUrl &container,
         const QUrl url(values.at(i));
         if (url.isEmpty())
             continue;
-        items.append({url, values.at(i + 1)});
+        listing.items.append({url, values.at(i + 1)});
     }
 
-    std::sort(items.begin(), items.end(),
+    std::sort(listing.items.begin(), listing.items.end(),
               [](const GifItem &lhs, const GifItem &rhs) {
                   return lhs.fileName < rhs.fileName;
               });
 
-    return items;
+    return listing;
 }
 
 QImage AndroidGifStorage::readThumbnail(const QUrl &url, const QSize &size)
@@ -226,7 +162,7 @@ QImage AndroidGifStorage::readThumbnail(const QUrl &url, const QSize &size)
 
     // Pre-warm the playback cache on the loader thread so QML never has to
     // read the whole document synchronously before animating.
-    writePlaybackCopy(url, data);
+    playback_cache.store(url, data);
 
     QBuffer buffer;
     buffer.setData(data);
@@ -249,9 +185,9 @@ QUrl AndroidGifStorage::playbackUrl(const QUrl &url)
     if (url.scheme() != QLatin1String("content"))
         return url;
 
-    const QString path = playbackFilePath(url);
-    if (QFileInfo::exists(path))
-        return QUrl::fromLocalFile(path);
+    const QUrl cached = playback_cache.cachedUrl(url);
+    if (!cached.isEmpty())
+        return cached;
 
     // The copy is normally pre-warmed by readThumbnail(); this synchronous
     // fallback keeps playback working when a thumbnail was skipped (e.g.
@@ -259,7 +195,9 @@ QUrl AndroidGifStorage::playbackUrl(const QUrl &url)
     const QByteArray data = readContent(url);
     if (data.isEmpty())
         return url;
-    return writePlaybackCopy(url, data);
+
+    const QUrl stored = playback_cache.store(url, data);
+    return stored.isEmpty() ? url : stored;
 }
 
 QString AndroidGifStorage::validateFile(const QUrl &url) const
@@ -330,12 +268,8 @@ QString AndroidGifStorage::removeFile(const QUrl &url)
         return tr("Unsupported location.");
 
     const QString display_name = displayNameFor(url);
-    const QJniObject context = androidContext();
-    const QJniObject uri = QJniObject::fromString(url.toString());
-    const bool removed = QJniObject::callStaticMethod<jboolean>(
-        SAF_STORAGE_CLASS, "deleteDocument",
-        "(Landroid/content/Context;Ljava/lang/String;)Z",
-        context.object(), uri.object());
+    const bool removed = jni::callStaticBool(
+        jni::SAF_STORAGE_CLASS, "deleteDocument", url);
 
     if (!removed) {
         return tr("Failed to delete file: %1")
@@ -352,13 +286,8 @@ QString AndroidGifStorage::renameFile(const QUrl &url,
     if (url.scheme() != QLatin1String("content"))
         return tr("Unsupported location.");
 
-    const QJniObject context = androidContext();
-    const QJniObject uri = QJniObject::fromString(url.toString());
-    const QJniObject display_name = QJniObject::fromString(new_display_name);
-    const bool renamed = QJniObject::callStaticMethod<jboolean>(
-        SAF_STORAGE_CLASS, "renameDocument",
-        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Z",
-        context.object(), uri.object(), display_name.object());
+    const bool renamed = jni::callStaticBool(
+        jni::SAF_STORAGE_CLASS, "renameDocument", url, new_display_name);
 
     if (!renamed)
         return tr("Failed to rename file.");

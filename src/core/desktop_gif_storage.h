@@ -10,8 +10,8 @@ class DesktopGifStorage : public GifStorage
     Q_DECLARE_TR_FUNCTIONS(DesktopGifStorage)
 public:
     bool exists(const QUrl &container) const override;
-    QList<GifItem> listGifs(const QUrl &container,
-                            const StopPredicate &shouldStop = {}) override;
+    Listing listGifs(const QUrl &container,
+                     const StopPredicate &shouldStop = {}) override;
     QImage readThumbnail(const QUrl &url, const QSize &size) override;
     QUrl playbackUrl(const QUrl &url) override;
 

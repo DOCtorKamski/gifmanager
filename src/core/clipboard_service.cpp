@@ -10,13 +10,17 @@
 #include <QVariant>
 
 #ifdef Q_OS_ANDROID
-#include <QCoreApplication>
-#include <QJniObject>
+#include "jni_util.h"
 
 namespace {
 
-constexpr const char *CLIPBOARD_BRIDGE_CLASS =
-    "org/qtproject/gifmanager/ClipboardBridge";
+// User-visible label for the clip/intent; falls back to "GIF" because document
+// URIs do not always end in a file name.
+QString documentLabel(const QUrl &url)
+{
+    const QString name = jni::documentLabel(url);
+    return name.isEmpty() ? QStringLiteral("GIF") : name;
+}
 
 } // namespace
 #endif
@@ -41,17 +45,8 @@ void ClipboardService::copyFile(const QUrl &url)
     if (url.scheme() != QLatin1String("content"))
         return;
 
-    const QString name = QUrl::fromPercentEncoding(url.fileName().toUtf8());
-    const QJniObject context =
-        QNativeInterface::QAndroidApplication::context();
-    const QJniObject uri = QJniObject::fromString(url.toString());
-    const QJniObject label = QJniObject::fromString(
-        name.isEmpty() ? QStringLiteral("GIF") : name);
-
-    QJniObject::callStaticMethod<jboolean>(
-        CLIPBOARD_BRIDGE_CLASS, "copyDocument",
-        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Z",
-        context.object(), uri.object(), label.object());
+    jni::callStaticBool(jni::CLIPBOARD_BRIDGE_CLASS, "copyDocument", url,
+                        documentLabel(url));
 #else
     // Desktop payload.
     if (!url.isLocalFile())
@@ -88,16 +83,7 @@ void ClipboardService::shareFile(const QUrl &url)
     if (url.scheme() != QLatin1String("content"))
         return;
 
-    const QString name = QUrl::fromPercentEncoding(url.fileName().toUtf8());
-    const QJniObject context =
-        QNativeInterface::QAndroidApplication::context();
-    const QJniObject uri = QJniObject::fromString(url.toString());
-    const QJniObject label = QJniObject::fromString(
-        name.isEmpty() ? QStringLiteral("GIF") : name);
-
-    QJniObject::callStaticMethod<jboolean>(
-        CLIPBOARD_BRIDGE_CLASS, "shareDocument",
-        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)Z",
-        context.object(), uri.object(), label.object());
+    jni::callStaticBool(jni::CLIPBOARD_BRIDGE_CLASS, "shareDocument", url,
+                        documentLabel(url));
 #endif
 }

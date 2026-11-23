@@ -38,6 +38,7 @@ qt_add_library(gifmanager_core STATIC
     src/core/gif_storage.h
     src/core/gif_storage_factory.h src/core/gif_storage_factory.cpp
     src/core/path_utils.h src/core/path_utils.cpp
+    src/core/playback_cache.h src/core/playback_cache.cpp
     src/core/thumbnail_provider.h src/core/thumbnail_provider.cpp
     src/core/settings.h src/core/settings.cpp
 )
@@ -45,6 +46,7 @@ qt_add_library(gifmanager_core STATIC
 if(ANDROID)
     target_sources(gifmanager_core PRIVATE
         src/core/android_gif_storage.h src/core/android_gif_storage.cpp
+        src/core/jni_util.h
     )
 endif()
 

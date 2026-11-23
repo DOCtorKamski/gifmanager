@@ -47,6 +47,9 @@ public slots:
 
 signals:
     void filesDiscovered(const QList<GifItem> &items);
+    // Emitted instead of filesDiscovered() when the storage backend cannot read
+    // the container; the worker then stops without generating thumbnails.
+    void discoveryFailed(const QString &error);
     void gifLoaded(const QUrl &url, const QImage &thumbnail);
     void progress(int current, int total);
     void finished();

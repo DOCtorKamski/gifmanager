@@ -26,11 +26,21 @@ public:
         bool changed = false;
     };
 
+    // Listing result. An empty error means the scan succeeded; a non-empty one
+    // means the container could not be read and items is empty, so the UI can
+    // tell "folder is broken" apart from "folder contains no GIFs".
+    struct Listing {
+        QList<GifItem> items;
+        QString error;
+
+        bool failed() const { return !error.isEmpty(); }
+    };
+
     virtual ~GifStorage() = default;
 
     virtual bool exists(const QUrl &container) const = 0;
-    virtual QList<GifItem> listGifs(const QUrl &container,
-                                    const StopPredicate &shouldStop = {}) = 0;
+    virtual Listing listGifs(const QUrl &container,
+                             const StopPredicate &shouldStop = {}) = 0;
     virtual QImage readThumbnail(const QUrl &url, const QSize &size) = 0;
 
     // Returns a URL the QML AnimatedImage can open for full animation.

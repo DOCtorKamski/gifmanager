@@ -52,6 +52,8 @@ signals:
     void progressChanged();
     void currentFolderChanged();
     void filterCleared();
+    // Forwarded from GifLibrary when the current folder cannot be listed.
+    void loadFailed(const QString &message);
     void fileAboutToChange(const QUrl &url);
     void mutatingUrlChanged();
 
