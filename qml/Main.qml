@@ -21,6 +21,9 @@ ApplicationWindow {
     property string pendingRenameFileName: ""
     property url contextMenuUrl
     property string contextMenuFileName: ""
+    // Message of the last failed folder listing; shown in the empty grid so a
+    // broken folder is not reported as an empty one once the dialog is closed.
+    property string loadError: ""
 
     Component.onCompleted: {
         if (AppSettings.hasWindowGeometry) {
@@ -187,9 +190,11 @@ ApplicationWindow {
     Label {
         anchors.centerIn: parent
         visible: grid.count === 0 && !GifController.loading
-        text: GifController.hasFolder
-              ? qsTr("No GIFs found")
-              : qsTr("Choose a folder with GIFs")
+        text: !GifController.hasFolder
+              ? qsTr("Choose a folder with GIFs")
+              : (root.loadError.length > 0
+                 ? qsTr("Folder could not be read")
+                 : qsTr("No GIFs found"))
         color: "#777777"
     }
 
@@ -283,7 +288,15 @@ ApplicationWindow {
         }
 
         function onLoadFailed(message) {
+            root.loadError = message
             root.showError(message)
+        }
+
+        function onLoadingChanged() {
+            // A new load clears the previous failure; if this one fails too,
+            // onLoadFailed sets the message again.
+            if (GifController.loading)
+                root.loadError = ""
         }
 
         function onFileAboutToChange(url) {
