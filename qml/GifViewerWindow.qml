@@ -9,7 +9,6 @@ Window {
     property string fileName: ""
 
     signal closeRequested()
-    signal copyRequested()
     signal deleteRequested()
     signal renameRequested()
 
@@ -104,31 +103,16 @@ Window {
         focus: true
         Keys.onBackPressed: root.closeRequested()
 
-        Menu {
+        GifMenu {
             id: viewerMenu
-            MenuItem {
-                text: qsTr("Share")
-                visible: Qt.platform.os === "android"
-                height: visible ? implicitHeight : 0
-                onTriggered: ClipboardService.shareFile(root.fileUrl)
+            gifUrl: root.fileUrl
+            onDeleteRequested: {
+                root.deleteRequested()
+                root.closeRequested()
             }
-            MenuItem {
-                text: qsTr("Copy GIF")
-                onTriggered: root.copyRequested()
-            }
-            MenuItem {
-                text: qsTr("Delete")
-                onTriggered: {
-                    root.deleteRequested()
-                    root.closeRequested()
-                }
-            }
-            MenuItem {
-                text: qsTr("Rename")
-                onTriggered: {
-                    root.renameRequested()
-                    root.closeRequested()
-                }
+            onRenameRequested: {
+                root.renameRequested()
+                root.closeRequested()
             }
         }
     }
