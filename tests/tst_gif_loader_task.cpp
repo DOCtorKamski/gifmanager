@@ -50,6 +50,19 @@ std::shared_ptr<GifStorage> desktopStorage()
     return std::make_shared<DesktopGifStorage>();
 }
 
+// DesktopGifStorage with a forced listing failure so the task's error
+// forwarding can be tested without an unreadable directory.
+class FailingStorage : public DesktopGifStorage
+{
+public:
+    Listing listGifs(const QUrl &, const StopPredicate &) override
+    {
+        Listing listing;
+        listing.error = QStringLiteral("Folder cannot be read.");
+        return listing;
+    }
+};
+
 QList<GifItem> itemsFor(const QStringList &paths)
 {
     QList<GifItem> items;
@@ -66,6 +79,7 @@ class TestGifLoaderTask : public QObject
 
 private slots:
     void loadsFolderAndEmitsOrderedSignals();
+    void discoveryFailureIsForwarded();
     void explicitFileListSkipsScan();
     void cancelDoesNotEmitFinished();
     void cancelIsIdempotent();
@@ -112,6 +126,31 @@ void TestGifLoaderTask::loadsFolderAndEmitsOrderedSignals()
     QCOMPARE(order.last(), QStringLiteral("finished"));
     QCOMPARE(order.count(QStringLiteral("loaded")), 3);
     QCOMPARE(order.count(QStringLiteral("progress")), 3);
+}
+
+void TestGifLoaderTask::discoveryFailureIsForwarded()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+
+    GifLoaderTask task(GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8),
+        std::make_shared<FailingStorage>()));
+
+    QSignalSpy failed(&task, &GifLoaderTask::discoveryFailed);
+    QSignalSpy discovered(&task, &GifLoaderTask::filesDiscovered);
+    QSignalSpy loaded(&task, &GifLoaderTask::gifLoaded);
+    QSignalSpy finished(&task, &GifLoaderTask::finished);
+
+    task.start();
+    QVERIFY(finished.wait(5000));
+
+    QCOMPARE(failed.count(), 1);
+    QCOMPARE(failed.first().at(0).toString(),
+             QStringLiteral("Folder cannot be read."));
+    QCOMPARE(discovered.count(), 0);
+    QCOMPARE(loaded.count(), 0);
+    QVERIFY(!task.isRunning());
 }
 
 void TestGifLoaderTask::explicitFileListSkipsScan()
