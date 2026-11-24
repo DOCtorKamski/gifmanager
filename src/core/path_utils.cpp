@@ -13,11 +13,6 @@ PathUtils::PathUtils(QObject *parent)
 {
 }
 
-QUrl PathUtils::fromLocalPath(const QString &path) const
-{
-    return fromUserInput(path);
-}
-
 QUrl PathUtils::fromUserInput(const QString &text) const
 {
     if (text.isEmpty())
