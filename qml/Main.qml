@@ -175,28 +175,13 @@ ApplicationWindow {
         }
     }
 
-    Menu {
+    GifMenu {
         id: gridContextMenu
-        MenuItem {
-            text: qsTr("Share")
-            visible: Qt.platform.os === "android"
-            height: visible ? implicitHeight : 0
-            onTriggered: ClipboardService.shareFile(root.contextMenuUrl)
-        }
-        MenuItem {
-            text: qsTr("Copy GIF")
-            onTriggered: ClipboardService.copyFile(root.contextMenuUrl)
-        }
-        MenuItem {
-            text: qsTr("Delete")
-            onTriggered: root.requestDelete(root.contextMenuUrl,
-                                            root.contextMenuFileName)
-        }
-        MenuItem {
-            text: qsTr("Rename")
-            onTriggered: root.requestRename(root.contextMenuUrl,
-                                            root.contextMenuFileName)
-        }
+        gifUrl: root.contextMenuUrl
+        onDeleteRequested: root.requestDelete(root.contextMenuUrl,
+                                             root.contextMenuFileName)
+        onRenameRequested: root.requestRename(root.contextMenuUrl,
+                                             root.contextMenuFileName)
     }
 
     Label {
@@ -333,7 +318,6 @@ ApplicationWindow {
         fileName: root.viewerFileName
 
         onCloseRequested: root.closeViewer()
-        onCopyRequested: ClipboardService.copyFile(root.viewerUrl)
         onDeleteRequested: root.requestDelete(root.viewerUrl, root.viewerFileName)
         onRenameRequested: root.requestRename(root.viewerUrl, root.viewerFileName)
     }

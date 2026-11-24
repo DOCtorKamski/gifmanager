@@ -46,7 +46,13 @@ qt_add_library(gifmanager_core STATIC
 if(ANDROID)
     target_sources(gifmanager_core PRIVATE
         src/core/android_gif_storage.h src/core/android_gif_storage.cpp
+        src/core/clipboard_service_android.cpp
         src/core/jni_util.h
+    )
+else()
+    target_sources(gifmanager_core PRIVATE
+        src/core/clipboard_service_desktop.h
+        src/core/clipboard_service_desktop.cpp
     )
 endif()
 
@@ -102,6 +108,7 @@ endif()
 set(GIFMANAGER_QML_FILES
     qml/Main.qml
     qml/GifDelegate.qml
+    qml/GifMenu.qml
     qml/GifViewerWindow.qml
     qml/SettingsDialog.qml
     qml/ConfirmDeleteDialog.qml

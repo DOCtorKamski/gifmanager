@@ -21,3 +21,9 @@ gifmanager_add_test(tst_desktop_gif_storage)
 gifmanager_add_test(tst_gif_controller)
 gifmanager_add_test(tst_settings)
 gifmanager_add_test(tst_playback_cache)
+gifmanager_add_test(tst_path_utils)
+
+if(NOT ANDROID)
+    # Uses an offscreen QGuiApplication because the payload embeds a QPixmap.
+    gifmanager_add_test(tst_clipboard)
+endif()
