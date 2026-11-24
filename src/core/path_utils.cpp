@@ -38,5 +38,7 @@ QString PathUtils::toLocalPath(const QUrl &url) const
 
 QString PathUtils::baseName(const QString &fileName) const
 {
-    return QFileInfo(fileName).baseName();
+    // completeBaseName() strips only the final extension, so "cat.funny.gif"
+    // prefills the rename dialog with "cat.funny" instead of "cat".
+    return QFileInfo(fileName).completeBaseName();
 }
