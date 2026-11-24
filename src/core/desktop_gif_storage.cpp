@@ -97,7 +97,9 @@ GifStorage::RenamePlan DesktopGifStorage::planRename(
     }
 
     const QFileInfo file_info(url.toLocalFile());
-    const QString old_name = file_info.baseName();
+    // completeBaseName() keeps inner dots: the rename plan must treat
+    // "cat.funny.gif" as "cat.funny", matching the dialog prefill.
+    const QString old_name = file_info.completeBaseName();
     const QString trimmed_name = new_base_name.trimmed();
 
     if (trimmed_name.isEmpty()) {

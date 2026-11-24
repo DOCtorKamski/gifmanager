@@ -230,7 +230,9 @@ GifStorage::RenamePlan AndroidGifStorage::planRename(
     }
 
     const QFileInfo file_info(old_display_name);
-    const QString old_name = file_info.baseName();
+    // completeBaseName() keeps inner dots: the rename plan must treat
+    // "cat.funny.gif" as "cat.funny", matching the dialog prefill.
+    const QString old_name = file_info.completeBaseName();
     const QString trimmed_name = new_base_name.trimmed();
 
     if (trimmed_name.isEmpty()) {

@@ -34,6 +34,7 @@ private slots:
     void removeFileDeletesExistingFile();
     void planRenamePreservesExtension();
     void planRenameSameNameIsNoOp();
+    void planRenameDottedNameIsNoOp();
     void planRenameRejectsEmptyName();
     void planRenameRejectsInvalidCharacters();
     void planRenameRejectsExistingTarget();
@@ -96,6 +97,25 @@ void TestDesktopGifStorage::planRenameSameNameIsNoOp()
         storage.planRename(localUrl(path), QStringLiteral("photo"));
 
     QVERIFY(plan.error.isEmpty());
+    QVERIFY(!plan.changed);
+    QVERIFY(plan.new_display_name.isEmpty());
+}
+
+void TestDesktopGifStorage::planRenameDottedNameIsNoOp()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+
+    // The rename dialog prefills the complete base name, so confirming it
+    // unchanged must not try to rename the file to a different name.
+    const QString path = folder.filePath(QStringLiteral("cat.funny.gif"));
+    QVERIFY(writeFile(path, "data"));
+
+    DesktopGifStorage storage;
+    const GifStorage::RenamePlan plan =
+        storage.planRename(localUrl(path), QStringLiteral("cat.funny"));
+
+    QVERIFY2(plan.error.isEmpty(), qPrintable(plan.error));
     QVERIFY(!plan.changed);
     QVERIFY(plan.new_display_name.isEmpty());
 }

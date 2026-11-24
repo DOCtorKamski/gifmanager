@@ -18,6 +18,8 @@ public:
     Q_INVOKABLE QUrl fromUserInput(const QString &text) const;
     // Local path on desktop, the full URL string for content:// URIs.
     Q_INVOKABLE QString toLocalPath(const QUrl &url) const;
+    // Rename-dialog prefill: file name without its final extension, keeping
+    // inner dots ("cat.funny.gif" → "cat.funny").
     Q_INVOKABLE QString baseName(const QString &fileName) const;
 
 private:

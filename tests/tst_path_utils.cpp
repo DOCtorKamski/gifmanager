@@ -62,11 +62,10 @@ void TestPathUtils::baseNameDropsExtension()
 {
     QCOMPARE(PathUtils::instance().baseName(QStringLiteral("photo.gif")),
              QStringLiteral("photo"));
-    // QFileInfo::baseName() stops at the first dot, not the last one, so a
-    // dotted name prefills the rename dialog with "photo" instead of
-    // "photo.final". This locks the current behaviour.
+    // Only the final extension is dropped, so dotted names keep their inner
+    // parts and the rename dialog prefills them unchanged.
     QCOMPARE(PathUtils::instance().baseName(QStringLiteral("photo.final.gif")),
-             QStringLiteral("photo"));
+             QStringLiteral("photo.final"));
     QCOMPARE(PathUtils::instance().baseName(QStringLiteral("photo")),
              QStringLiteral("photo"));
 }
