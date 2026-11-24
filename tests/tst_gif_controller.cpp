@@ -68,6 +68,7 @@ public:
         ++list_calls;
         Listing listing;
         listing.items = items;
+        listing.error = listing_error;
         return listing;
     }
 
@@ -106,6 +107,7 @@ public:
 
     QList<GifItem> items;
     RenamePlan plan;
+    QString listing_error;
     QString validate_error;
     QString remove_error;
     QString rename_error;
@@ -131,6 +133,7 @@ private slots:
 
     void loadsFolderAndReportsProgress();
     void loadFolderReturnsErrorForMissingPath();
+    void listingFailureEmitsLoadFailed();
     void deleteFileRemovesRowAndReloads();
     void deleteMissingFileReturnsError();
     void renameFilePreservesExtensionAndReloads();
@@ -190,6 +193,29 @@ void TestGifController::loadFolderReturnsErrorForMissingPath()
     QVERIFY(!error.isEmpty());
     QVERIFY(!controller.isLoading());
     QVERIFY(controller.currentFolderUrl().isEmpty());
+}
+
+void TestGifController::listingFailureEmitsLoadFailed()
+{
+    auto storage = std::make_shared<FakeGifStorage>();
+    storage->listing_error = QStringLiteral("Folder cannot be read.");
+
+    ThumbnailProvider provider;
+    GifController controller(&provider, storage);
+
+    QSignalSpy failed(&controller, &GifController::loadFailed);
+
+    const QString error =
+        controller.loadFolder(QUrl(QStringLiteral("content://test/tree")));
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QVERIFY(controller.isLoading());
+
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.isLoading(), 10000);
+
+    QCOMPARE(failed.count(), 1);
+    QCOMPARE(failed.first().at(0).toString(),
+             QStringLiteral("Folder cannot be read."));
+    QCOMPARE(controller.proxyModel()->rowCount(), 0);
 }
 
 void TestGifController::deleteFileRemovesRowAndReloads()
