@@ -20,6 +20,10 @@ Item {
                                       && (y < viewBottom)
     readonly property bool mutating: GifController.mutatingUrl.toString()
                                      === root.fileUrl.toString()
+    // Decoding and animating GIFs is too expensive on Android, so the grid
+    // stays on the static first-frame thumbnail there. The full-size viewer
+    // keeps animating normally.
+    readonly property bool animatedPreviewEnabled: Qt.platform.os !== "android"
 
     signal openRequested()
     signal contextMenuRequested(real sceneX, real sceneY)
@@ -49,7 +53,8 @@ Item {
             // Hide the static thumbnail once the animation is showing frames;
             // otherwise its first frame shows through transparent pixels.
             visible: root.thumbnailReady && !root.mutating
-                     && animation.status !== AnimatedImage.Ready
+                     && (!root.animatedPreviewEnabled
+                         || animation.status !== AnimatedImage.Ready)
         }
 
         AnimatedImage {
@@ -57,19 +62,23 @@ Item {
             anchors.fill: parent
             anchors.margins: 1
             // playbackUrl() maps content:// URIs to a cached file:// copy on
-            // Android; on desktop it returns the URL unchanged.
-            source: (root.onScreen && !root.mutating)
+            // Android; on desktop it returns the URL unchanged. Android keeps
+            // the grid static, so the GIF is only decoded in the viewer.
+            source: (root.animatedPreviewEnabled && root.onScreen
+                     && !root.mutating)
                     ? GifController.playbackUrl(root.fileUrl)
                     : ""
             // Pause instead of stopping: QMovie::stop() resets playback to the
             // first frame, while setPaused() resumes from the current frame.
-            playing: root.onScreen && !root.mutating
+            playing: root.animatedPreviewEnabled && root.onScreen
+                     && !root.mutating
             paused: root.scrolling
             fillMode: AnimatedImage.PreserveAspectFit
             asynchronous: true
             cache: false
             sourceSize: Qt.size(Math.max(1, width), Math.max(1, height))
-            visible: status === AnimatedImage.Ready
+            visible: root.animatedPreviewEnabled
+                     && status === AnimatedImage.Ready
         }
     }
 
