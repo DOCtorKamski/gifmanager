@@ -8,8 +8,10 @@
 
 #include <QAbstractItemModel>
 #include <QFile>
+#include <QPersistentModelIndex>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QThread>
 #include <QUrl>
 
 #include <memory>
@@ -26,6 +28,18 @@ public:
         Listing listing;
         listing.error = QStringLiteral("Folder cannot be read.");
         return listing;
+    }
+};
+
+// Keeps the discovery task alive long enough for shutdown tests to observe an
+// active load now that production no longer waits for thumbnails.
+class SlowStorage : public DesktopGifStorage
+{
+public:
+    Listing listGifs(const QUrl &container, const StopPredicate &shouldStop) override
+    {
+        QThread::msleep(50);
+        return DesktopGifStorage::listGifs(container, shouldStop);
     }
 };
 
@@ -68,6 +82,7 @@ private slots:
     void initTestCase();
 
     void loadsFolderAndReportsProgress();
+    void requestThumbnailPopulatesModel();
     void stopLoadingFromLoadingChangedLeavesLibraryIdle();
     void reentrantLoadFromLoadingChangedKeepsLatestFolder();
     void reentrantLoadFromProgressChangedKeepsLatestFolder();
@@ -108,6 +123,30 @@ void TestGifLibrary::loadsFolderAndReportsProgress()
     QCOMPARE(library.progressCurrent(), 3);
     QCOMPARE(library.progressTotal(), 3);
     QCOMPARE(library.proxyModel()->rowCount(), 3);
+}
+
+void TestGifLibrary::requestThumbnailPopulatesModel()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    QVERIFY(!writeGifs(folder, 2).isEmpty());
+
+    ThumbnailProvider provider;
+    GifLibrary library(&provider);
+
+    QVERIFY(library.loadFolder(QUrl::fromLocalFile(folder.path())).isEmpty());
+    QTRY_VERIFY_WITH_TIMEOUT(!library.isLoading(), 10000);
+
+    QAbstractItemModel *model = library.proxyModel();
+    QCOMPARE(model->rowCount(), 2);
+
+    const QPersistentModelIndex index(model->index(0, 0));
+    QVERIFY(!index.data(GifModel::ThumbnailReadyRole).toBool());
+    const QUrl url = index.data(GifModel::FileUrlRole).toUrl();
+
+    library.requestThumbnail(url);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        index.data(GifModel::ThumbnailReadyRole).toBool(), 5000);
 }
 
 void TestGifLibrary::stopLoadingFromLoadingChangedLeavesLibraryIdle()
@@ -231,7 +270,7 @@ void TestGifLibrary::shutdownWhileLoadingStopsTask()
     QVERIFY(!writeGifs(folder, 5).isEmpty());
 
     ThumbnailProvider provider;
-    GifLibrary library(&provider);
+    GifLibrary library(&provider, std::make_shared<SlowStorage>());
 
     QVERIFY(library.loadFolder(QUrl::fromLocalFile(folder.path())).isEmpty());
     QVERIFY(library.isLoading());

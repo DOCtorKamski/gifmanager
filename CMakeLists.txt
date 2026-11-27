@@ -9,6 +9,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
     QuickControls2
     QuickDialogs2
     QuickLayouts
+    Concurrent
 )
 
 qt_standard_project_setup()
@@ -37,6 +38,7 @@ qt_add_library(gifmanager_core STATIC
     src/core/gif_loader_worker.h src/core/gif_loader_worker.cpp
     src/core/gif_storage.h
     src/core/gif_storage_factory.h src/core/gif_storage_factory.cpp
+    src/core/gif_thumbnail_service.h src/core/gif_thumbnail_service.cpp
     src/core/path_utils.h src/core/path_utils.cpp
     src/core/playback_cache.h src/core/playback_cache.cpp
     src/core/thumbnail_provider.h src/core/thumbnail_provider.cpp
@@ -67,6 +69,7 @@ target_link_libraries(gifmanager_core
         Qt::Gui
         Qt::Qml
         Qt::Quick
+        Qt::Concurrent
 )
 
 # ---------------------------------------------------------------------------

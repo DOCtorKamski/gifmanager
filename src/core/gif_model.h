@@ -32,6 +32,7 @@ public:
     void resetFiles(const QList<GifItem> &gif_items);
     void setThumbnail(const QUrl &url, const QImage &image);
     bool removeFile(const QUrl &url);
+    bool contains(const QUrl &url) const;
 
 private:
     struct Item {

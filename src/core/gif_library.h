@@ -16,6 +16,7 @@
 class QSortFilterProxyModel;
 class GifModel;
 class GifStorage;
+class GifThumbnailService;
 class ThumbnailProvider;
 
 class GifLibrary : public QObject
@@ -38,6 +39,7 @@ public:
     QString loadFolderUrl(const QUrl &url);
     QString loadDefaultFolder();
     void setFilterQuery(const QString &query);
+    void requestThumbnail(const QUrl &url);
     void applySettings();
     void reloadCurrentFolder();
     void stopLoading();
@@ -66,6 +68,7 @@ private:
 
     GifModel *gif_model = nullptr;
     QSortFilterProxyModel *proxy_model = nullptr;
+    GifThumbnailService *thumbnail_service = nullptr;
     std::shared_ptr<GifStorage> storage;
 
     QUrl current_container;

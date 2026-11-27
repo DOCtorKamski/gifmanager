@@ -29,6 +29,20 @@ Item {
     signal contextMenuRequested(real sceneX, real sceneY)
     signal hoverChanged(bool hovered)
 
+    function requestThumbnailIfNeeded() {
+        if (!root.onScreen || root.thumbnailReady || root.mutating)
+            return
+        if (root.fileUrl.toString() === "")
+            return
+        GifController.requestThumbnail(root.fileUrl)
+    }
+
+    Component.onCompleted: requestThumbnailIfNeeded()
+    onFileUrlChanged: requestThumbnailIfNeeded()
+    onOnScreenChanged: requestThumbnailIfNeeded()
+    onThumbnailReadyChanged: requestThumbnailIfNeeded()
+    onMutatingChanged: requestThumbnailIfNeeded()
+
     width: cellWidth
     height: cellHeight
 

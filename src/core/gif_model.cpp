@@ -119,6 +119,11 @@ bool GifModel::removeFile(const QUrl &url)
     return true;
 }
 
+bool GifModel::contains(const QUrl &url) const
+{
+    return url_to_row.contains(url);
+}
+
 QString GifModel::makeImageId(const Item &item) const
 {
     const QString encoded = QString::fromLatin1(

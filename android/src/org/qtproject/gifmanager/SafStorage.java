@@ -4,6 +4,8 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 
@@ -167,6 +169,78 @@ public final class SafStorage {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    /**
+     * Decodes the first frame of a GIF at a reduced sample size and returns it
+     * as PNG bytes. The grid only needs a small thumbnail, so copying the whole
+     * document over JNI and decoding the full-size frame would be wasted work.
+     */
+    public static byte[] readThumbnail(Context context, String documentUri,
+                                       int maxDimension) {
+        if (maxDimension <= 0) {
+            return null;
+        }
+
+        final ContentResolver resolver = context.getContentResolver();
+        final Uri uri = parseUri(documentUri);
+        if (uri == null) {
+            return null;
+        }
+
+        final BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        try (InputStream input = resolver.openInputStream(uri)) {
+            if (input == null) {
+                return null;
+            }
+            BitmapFactory.decodeStream(input, null, bounds);
+        } catch (Exception ignored) {
+            return null;
+        }
+
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            return null;
+        }
+
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight,
+                maxDimension);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+
+        Bitmap bitmap = null;
+        try (InputStream input = resolver.openInputStream(uri)) {
+            if (input == null) {
+                return null;
+            }
+            bitmap = BitmapFactory.decodeStream(input, null, options);
+        } catch (Exception ignored) {
+            bitmap = null;
+        }
+
+        if (bitmap == null) {
+            return null;
+        }
+
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                return null;
+            }
+            return output.toByteArray();
+        } catch (Exception ignored) {
+            return null;
+        } finally {
+            bitmap.recycle();
+        }
+    }
+
+    private static int sampleSizeFor(int width, int height, int maxDimension) {
+        final int largest = Math.max(width, height);
+        int sample = 1;
+        while (largest / (sample * 2) >= maxDimension) {
+            sample *= 2;
+        }
+        return sample;
     }
 
     public static String displayName(Context context, String documentUri) {

@@ -3,6 +3,7 @@
 #include "gif_loader_task.h"
 #include "gif_model.h"
 #include "gif_storage_factory.h"
+#include "gif_thumbnail_service.h"
 #include "settings.h"
 #include "thumbnail_provider.h"
 
@@ -36,6 +37,10 @@ GifLibrary::GifLibrary(ThumbnailProvider *provider,
     proxy_model->setFilterRole(GifModel::FileNameRole);
     proxy_model->setFilterCaseSensitivity(Qt::CaseInsensitive);
     proxy_model->setDynamicSortFilter(true);
+
+    thumbnail_service = new GifThumbnailService(storage, this);
+    connect(thumbnail_service, &GifThumbnailService::thumbnailReady,
+            gif_model, &GifModel::setThumbnail);
 }
 
 GifLibrary::~GifLibrary()
@@ -106,6 +111,12 @@ void GifLibrary::setFilterQuery(const QString &query)
     proxy_model->setFilterFixedString(query.trimmed());
 }
 
+void GifLibrary::requestThumbnail(const QUrl &url)
+{
+    if (thumbnail_service && gif_model->contains(url))
+        thumbnail_service->request(url);
+}
+
 void GifLibrary::startLoading()
 {
     // Defensive: a reentrant handler may have started a load while we were
@@ -122,10 +133,15 @@ void GifLibrary::startLoading()
         return;
 
     loaded_thumbnail_size = SettingsManager::instance().getThumbnailSize();
+    thumbnail_service->setThumbnailSize(loaded_thumbnail_size);
+    thumbnail_service->clear();
 
-    const GifLoadRequest request =
+    GifLoadRequest request =
         GifLoadRequest::fromContainer(current_container, loaded_thumbnail_size,
                                       storage);
+    // The grid asks for thumbnails cell by cell as they become visible, so the
+    // loader only has to discover the file list.
+    request.load_thumbnails = false;
 
     GifLoaderTask *task = new GifLoaderTask(request, this);
     current_task = task;
@@ -153,6 +169,9 @@ void GifLibrary::startLoading()
 
 void GifLibrary::stopLoading()
 {
+    if (thumbnail_service)
+        thumbnail_service->clear();
+
     if (!current_task)
         return;
 

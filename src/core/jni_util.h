@@ -4,8 +4,8 @@
 // Shared JNI glue for the Android bridges. Only usable in an Android build: it
 // includes QJniObject and the Android application context API. Both
 // android_gif_storage.cpp and the Android branch of clipboard_service.cpp use
-// the same (Context, String[, String]) call shapes, so they are centralized
-// here instead of being repeated per call site.
+// the same context getter and string helpers, so they are centralized here
+// instead of being repeated per call site.
 
 #include <QCoreApplication>
 #include <QJniObject>

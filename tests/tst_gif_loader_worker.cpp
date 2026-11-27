@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QUrl>
 
@@ -69,6 +70,7 @@ private slots:
     void scansOnlyGifFiles();
     void scansGifFilesSortedByName();
     void reportsFilesBeforeThumbnails();
+    void discoveryOnlySkipsThumbnails();
     void explicitFileListSkipsScan();
     void stopRequestBeforeProcessEmitsNoResults();
     void invalidImageProducesPlaceholder();
@@ -155,6 +157,32 @@ void TestGifLoaderWorker::reportsFilesBeforeThumbnails()
     QVERIFY(order.last() == QStringLiteral("progress"));
 }
 
+void TestGifLoaderWorker::discoveryOnlySkipsThumbnails()
+{
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    QVERIFY(writeFile(folder.filePath(QStringLiteral("a.gif")), tinyGif()));
+    QVERIFY(writeFile(folder.filePath(QStringLiteral("b.gif")), tinyGif()));
+
+    GifLoadRequest request = GifLoadRequest::fromContainer(
+        QUrl::fromLocalFile(folder.path()), QSize(8, 8), desktopStorage());
+    request.load_thumbnails = false;
+
+    GifLoaderWorker worker(request);
+    QSignalSpy discovered(&worker, &GifLoaderWorker::filesDiscovered);
+    QSignalSpy loaded(&worker, &GifLoaderWorker::gifLoaded);
+    QSignalSpy progress(&worker, &GifLoaderWorker::progress);
+    QSignalSpy finished(&worker, &GifLoaderWorker::finished);
+
+    worker.process();
+
+    QCOMPARE(discovered.count(), 1);
+    QCOMPARE(discovered.first().at(0).value<QList<GifItem>>().size(), 2);
+    QCOMPARE(loaded.count(), 0);
+    QCOMPARE(progress.count(), 0);
+    QCOMPARE(finished.count(), 1);
+}
+
 void TestGifLoaderWorker::explicitFileListSkipsScan()
 {
     QTemporaryDir folder;
@@ -179,7 +207,14 @@ void TestGifLoaderWorker::explicitFileListSkipsScan()
     QCOMPARE(progress.count(), 2);
     QCOMPARE(progress.last().at(0).toInt(), 2);
     QCOMPARE(progress.last().at(1).toInt(), 2);
-    QCOMPARE(loaded.last().at(0).toUrl(), QUrl::fromLocalFile(second));
+    // Thumbnails are decoded in parallel, so their completion order is not
+    // guaranteed.
+    QSet<QUrl> loadedUrls;
+    for (const QList<QVariant> &signal : loaded)
+        loadedUrls.insert(signal.at(0).toUrl());
+    QCOMPARE(loadedUrls.size(), 2);
+    QVERIFY(loadedUrls.contains(QUrl::fromLocalFile(first)));
+    QVERIFY(loadedUrls.contains(QUrl::fromLocalFile(second)));
     QCOMPARE(finished.count(), 1);
 }
 

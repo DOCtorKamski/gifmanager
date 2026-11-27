@@ -90,6 +90,11 @@ void GifController::setFilterQuery(const QString &query)
     library->setFilterQuery(query);
 }
 
+void GifController::requestThumbnail(const QUrl &url)
+{
+    library->requestThumbnail(url);
+}
+
 QString GifController::deleteFile(const QUrl &url)
 {
     const QString error = storage->validateFile(url);

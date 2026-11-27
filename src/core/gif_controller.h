@@ -41,6 +41,7 @@ public:
     Q_INVOKABLE QString loadFolderUrl(const QUrl &url);
     Q_INVOKABLE QString loadDefaultFolder();
     Q_INVOKABLE void setFilterQuery(const QString &query);
+    Q_INVOKABLE void requestThumbnail(const QUrl &url);
     Q_INVOKABLE QString deleteFile(const QUrl &url);
     Q_INVOKABLE QString renameFile(const QUrl &url, const QString &new_base_name);
     Q_INVOKABLE QUrl playbackUrl(const QUrl &fileUrl) const;

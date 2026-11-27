@@ -67,20 +67,16 @@ bool listContent(const QUrl &container, QStringList *values)
     return true;
 }
 
-QByteArray readContent(const QUrl &url)
+QByteArray byteArrayFrom(const QJniObject &value)
 {
-    const QJniObject context = jni::androidContext();
-    const QJniObject uri = QJniObject::fromString(url.toString());
-    const QJniObject result = QJniObject::callStaticObjectMethod(
-        jni::SAF_STORAGE_CLASS, "readFile",
-        "(Landroid/content/Context;Ljava/lang/String;)[B",
-        context.object(), uri.object());
-
-    if (!result.isValid())
+    if (!value.isValid())
         return {};
 
     QJniEnvironment env;
-    auto array = static_cast<jbyteArray>(result.object());
+    auto array = static_cast<jbyteArray>(value.object());
+    if (!array)
+        return {};
+
     const jsize length = env->GetArrayLength(array);
     if (length <= 0)
         return {};
@@ -90,6 +86,50 @@ QByteArray readContent(const QUrl &url)
     env->GetByteArrayRegion(array, 0, length,
                             reinterpret_cast<jbyte *>(data.data()));
     return data;
+}
+
+QByteArray readContent(const QUrl &url)
+{
+    const QJniObject context = jni::androidContext();
+    const QJniObject uri = QJniObject::fromString(url.toString());
+    const QJniObject result = QJniObject::callStaticObjectMethod(
+        jni::SAF_STORAGE_CLASS, "readFile",
+        "(Landroid/content/Context;Ljava/lang/String;)[B",
+        context.object(), uri.object());
+
+    return byteArrayFrom(result);
+}
+
+QByteArray readThumbnailBytes(const QUrl &url, int max_dimension)
+{
+    const QJniObject context = jni::androidContext();
+    const QJniObject uri = QJniObject::fromString(url.toString());
+    const QJniObject result = QJniObject::callStaticObjectMethod(
+        jni::SAF_STORAGE_CLASS, "readThumbnail",
+        "(Landroid/content/Context;Ljava/lang/String;I)[B",
+        context.object(), uri.object(), static_cast<jint>(max_dimension));
+
+    return byteArrayFrom(result);
+}
+
+QImage readThumbnailFallback(const QUrl &url, const QSize &size)
+{
+    const QByteArray data = readContent(url);
+    if (data.isEmpty())
+        return {};
+
+    QBuffer buffer;
+    buffer.setData(data);
+    if (!buffer.open(QIODevice::ReadOnly))
+        return {};
+
+    QImageReader reader(&buffer);
+    reader.setScaledSize(size);
+    const QImage image = reader.read();
+    if (image.isNull())
+        return {};
+
+    return image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 }
 
 } // namespace
@@ -156,26 +196,20 @@ QImage AndroidGifStorage::readThumbnail(const QUrl &url, const QSize &size)
     if (url.scheme() != QLatin1String("content"))
         return {};
 
-    const QByteArray data = readContent(url);
-    if (data.isEmpty())
-        return {};
+    // The Java bridge decodes the first frame at a reduced sample size and
+    // returns a small PNG, so loading never transfers or decodes the whole GIF.
+    const int max_dimension = std::max(size.width(), size.height());
+    const QByteArray data = readThumbnailBytes(url, max_dimension);
+    if (!data.isEmpty()) {
+        const QImage image = QImage::fromData(data, "PNG");
+        if (!image.isNull())
+            return image.scaled(size, Qt::KeepAspectRatio,
+                                Qt::SmoothTransformation);
+    }
 
-    // Pre-warm the playback cache on the loader thread so QML never has to
-    // read the whole document synchronously before animating.
-    playback_cache.store(url, data);
-
-    QBuffer buffer;
-    buffer.setData(data);
-    if (!buffer.open(QIODevice::ReadOnly))
-        return {};
-
-    QImageReader reader(&buffer);
-    reader.setScaledSize(size);
-    const QImage image = reader.read();
-    if (image.isNull())
-        return {};
-
-    return image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    // Android's decoder can reject some GIFs that Qt handles; keep a fallback
+    // for those, even though it has to read the whole document.
+    return readThumbnailFallback(url, size);
 }
 
 QUrl AndroidGifStorage::playbackUrl(const QUrl &url)
@@ -189,9 +223,10 @@ QUrl AndroidGifStorage::playbackUrl(const QUrl &url)
     if (!cached.isEmpty())
         return cached;
 
-    // The copy is normally pre-warmed by readThumbnail(); this synchronous
-    // fallback keeps playback working when a thumbnail was skipped (e.g.
-    // cancelled load).
+    // The viewer is the only consumer of the playback cache, so the document
+    // is copied on first playback instead of during the grid load. This can
+    // block the caller for a large document, but it avoids copying every GIF
+    // in the folder just to show a thumbnail.
     const QByteArray data = readContent(url);
     if (data.isEmpty())
         return url;
